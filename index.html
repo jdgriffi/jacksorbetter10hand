@@ -26,6 +26,9 @@
     <!-- Win Message -->
     <div class="win-message" id="winMessage">&nbsp;</div>
 
+    <!-- Satellite Hands (10-hand mode) -->
+    <div class="satellite-section" id="satelliteSection"></div>
+
     <!-- Cards -->
     <div class="cards-area" id="cardsArea"></div>
 
@@ -66,6 +69,15 @@
             <button class="modal-close" id="closeSettings">&#10005;</button>
         </div>
         <div class="modal-body">
+
+            <div class="settings-section">
+                <h3>Game Mode</h3>
+                <div class="mode-options">
+                    <button class="mode-btn active" data-hands="1">Single Hand</button>
+                    <button class="mode-btn" data-hands="10">10 Hands</button>
+                </div>
+                <p class="hint" style="margin-top:6px">In 10-hand mode, your bet is multiplied by 10 per deal. Each hand pays out independently.</p>
+            </div>
 
             <div class="settings-section">
                 <h3>Credit Value</h3>

@@ -45,9 +45,13 @@ const state = {
     bet:         1,
     creditValue: 0.25,
     payTable:    { ...DEFAULT_PAY_TABLE },
-    phase:       'idle',   // idle | holding | result
+    phase:       'idle',   // idle | dealing | holding | result
     lastWin:     0,
     lastHand:    null,
+    // Multi-hand
+    multiHand:   false,
+    satCards:    [],       // [9][5] — satellite hand cards after draw
+    satWins:     [],       // [9]   — payout per satellite hand
 };
 
 // ─── Audio (Web Audio API — no files needed) ──────────────────────────────────
@@ -394,6 +398,101 @@ function updateDisplay() {
     }
 }
 
+// ─── Satellite Hand Helpers ───────────────────────────────────────────────────
+
+function makeSatCardEl(card) {
+    const colorClass = RED_SUITS.has(card.suit) ? 'red' : 'black';
+    const el = document.createElement('div');
+    el.className = `sat-card ${colorClass}`;
+    el.innerHTML = `
+      <div class="sat-corner tl">
+        <span class="sat-rank">${card.rank}</span>
+        <span class="sat-suit">${card.suit}</span>
+      </div>
+      <div class="sat-center">${card.suit}</div>
+      <div class="sat-corner br">
+        <span class="sat-rank">${card.rank}</span>
+        <span class="sat-suit">${card.suit}</span>
+      </div>`;
+    return el;
+}
+
+// Build/reset the 9-hand grid — all backs
+function initSatelliteHands() {
+    const section = document.getElementById('satelliteSection');
+    if (!state.multiHand) { section.style.display = 'none'; return; }
+    section.style.display = 'grid';
+    section.innerHTML = '';
+    state.satCards = [];
+    state.satWins  = [];
+
+    for (let h = 0; h < 9; h++) {
+        const handEl = document.createElement('div');
+        handEl.className = 'sat-hand';
+        handEl.dataset.hand = h;
+
+        const cardsEl = document.createElement('div');
+        cardsEl.className = 'sat-cards';
+        for (let c = 0; c < 5; c++) {
+            const slot = document.createElement('div');
+            slot.className = 'sat-slot';
+            slot.dataset.pos = c;
+            const back = document.createElement('div');
+            back.className = 'sat-card back';
+            slot.appendChild(back);
+            cardsEl.appendChild(slot);
+        }
+
+        const winEl = document.createElement('div');
+        winEl.className = 'sat-win';
+        winEl.textContent = '\u00a0';
+
+        handEl.appendChild(cardsEl);
+        handEl.appendChild(winEl);
+        section.appendChild(handEl);
+    }
+}
+
+// Sync satellite hand displays whenever a hold is toggled
+function updateSatelliteForHold() {
+    if (!state.multiHand) return;
+    document.querySelectorAll('.sat-hand').forEach(handEl => {
+        const slots = handEl.querySelectorAll('.sat-slot');
+        for (let c = 0; c < 5; c++) {
+            slots[c].innerHTML = '';
+            if (state.held[c]) {
+                const cardEl = makeSatCardEl(state.hand[c]);
+                cardEl.style.animationDelay = '0ms';
+                slots[c].appendChild(cardEl);
+            } else {
+                const back = document.createElement('div');
+                back.className = 'sat-card back';
+                slots[c].appendChild(back);
+            }
+        }
+    });
+}
+
+// Draw satellite cards and animate; returns total satellite payout
+function drawSatelliteHands() {
+    state.satCards = [];
+    state.satWins  = [];
+    let total = 0;
+
+    for (let h = 0; h < 9; h++) {
+        const deck = createDeck(); // independent shuffled deck per hand
+        const hand = state.hand.map((card, c) =>
+            state.held[c] ? card : deck.splice(0, 1)[0]
+        );
+        state.satCards.push(hand);
+        const satHandName = evaluateHand(hand);
+        const satPay = calculatePayout(satHandName, state.bet);
+        state.satWins.push({ name: satHandName, pay: satPay });
+        total += satPay;
+    }
+    return total;
+}
+
 // ─── Game Actions ─────────────────────────────────────────────────────────────
 
 function toggleHold(index) {
@@ -402,16 +501,19 @@ function toggleHold(index) {
 
     const slot = document.querySelectorAll('#cardsArea .card-slot')[index];
     if (slot) slot.classList.toggle('held', state.held[index]);
+
+    updateSatelliteForHold();
 }
 
 function deal() {
     if (state.phase === 'holding') { draw(); return; }
-    if (state.credits < state.bet) {
+    const totalBet = state.bet * (state.multiHand ? 10 : 1);
+    if (state.credits < totalBet) {
         document.getElementById('winMessage').textContent = 'NOT ENOUGH CREDITS';
         return;
     }
 
-    state.credits  -= state.bet;
+    state.credits  -= totalBet;
     state.lastWin   = 0;
     state.lastHand  = null;
     state.held      = [false,false,false,false,false];
@@ -424,6 +526,7 @@ function deal() {
     area.innerHTML = '';
     for (let i = 0; i < 5; i++) area.appendChild(makeSlotEl(null, i, true));
 
+    initSatelliteHands();
     renderPayTable();
     updateDisplay();
 
@@ -471,15 +574,20 @@ function draw() {
         if (!state.held[i]) toReplace.push(i);
     }
 
+    // Draw main hand cards
     for (const i of toReplace) {
         state.hand[i] = state.deck.splice(0, 1)[0];
     }
 
-    const handName = evaluateHand(state.hand);
-    const payout   = calculatePayout(handName, state.bet);
+    // Calculate satellite hands (before clearing held[] so drawSatelliteHands can read it)
+    const satTotalPayout = state.multiHand ? drawSatelliteHands() : 0;
+
+    const handName  = evaluateHand(state.hand);
+    const mainPay   = calculatePayout(handName, state.bet);
+    const totalPay  = mainPay + satTotalPayout;
 
     state.lastHand = handName;
-    state.lastWin  = payout;
+    state.lastWin  = totalPay;
     state.phase    = 'result';
     state.held     = [false,false,false,false,false];
 
@@ -488,8 +596,8 @@ function draw() {
         el.classList.remove('held');
     });
 
-    // Disable deal button during animation
-    document.getElementById('dealBtn').disabled = true;
+    // Disable buttons during animation
+    document.getElementById('dealBtn').disabled  = true;
     document.getElementById('betOneBtn').disabled = true;
     document.getElementById('maxBetBtn').disabled = true;
 
@@ -498,27 +606,51 @@ function draw() {
 
     toReplace.forEach((cardIndex, seq) => {
         setTimeout(() => {
-            const card = state.hand[cardIndex];
-            const newCardEl = makeCardEl(card, cardIndex);
+            // Main hand card
+            const newCardEl = makeCardEl(state.hand[cardIndex], cardIndex);
             newCardEl.style.animationDelay = '0ms';
-
-            const slot = slots[cardIndex];
-            const oldCard = slot.querySelector('.card');
-            slot.replaceChild(newCardEl, oldCard);
+            slots[cardIndex].replaceChild(newCardEl, slots[cardIndex].querySelector('.card'));
             playDraw();
+
+            // Same column across all 9 satellite hands simultaneously
+            if (state.multiHand) {
+                document.querySelectorAll('.sat-hand').forEach((handEl, h) => {
+                    const satSlot = handEl.querySelector(`.sat-slot[data-pos="${cardIndex}"]`);
+                    if (!satSlot) return;
+                    satSlot.innerHTML = '';
+                    const satCard = makeSatCardEl(state.satCards[h][cardIndex]);
+                    satCard.style.animationDelay = '0ms';
+                    satSlot.appendChild(satCard);
+                });
+            }
         }, seq * INTERVAL);
     });
 
-    // After cards land: play fanfare then count up credits
+    // After cards land: show results and count up
     const cardsDone = toReplace.length * INTERVAL + 350;
     setTimeout(() => {
-        renderPayTable();
-        updateDisplay();  // shows hand name, resets win display
+        // Show per-hand win labels on satellite hands
+        if (state.multiHand) {
+            document.querySelectorAll('.sat-hand').forEach((handEl, h) => {
+                const winEl = handEl.querySelector('.sat-win');
+                const { name, pay } = state.satWins[h];
+                if (pay > 0) {
+                    winEl.textContent = (name || '') + ' +' + pay;
+                    winEl.classList.add('winner');
+                } else {
+                    winEl.textContent = '\u00a0';
+                    winEl.classList.remove('winner');
+                }
+            });
+        }
 
-        if (payout > 0) {
+        renderPayTable();
+        updateDisplay();
+
+        if (totalPay > 0) {
             playWinFanfare(handName);
             const creditsBeforeWin = state.credits;
-            state.credits += payout;
+            state.credits += totalPay;
 
             setTimeout(() => {
                 animateCountUp(creditsBeforeWin, state.credits, () => {
@@ -608,6 +740,19 @@ function init() {
             btn.classList.remove('saved');
             closeSettings();
         }, 700);
+    });
+
+    // Game mode toggle (1-hand / 10-hand)
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const hands = parseInt(btn.dataset.hands);
+            state.multiHand = hands === 10;
+            document.querySelectorAll('.mode-btn').forEach(b =>
+                b.classList.toggle('active', b === btn));
+            // Reset satellite section visibility immediately
+            const section = document.getElementById('satelliteSection');
+            if (!state.multiHand) section.style.display = 'none';
+        });
     });
 
     // Credit value buttons

@@ -110,6 +110,100 @@ body {
     border-bottom: 1px solid #333;
 }
 
+/* ─── Satellite Hands (10-hand mode) ───────────────────────── */
+.satellite-section {
+    display: none; /* shown via JS in multi-hand mode */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 4px 6px 0;
+    background: #0a0a0a;
+    border-bottom: 1px solid #222;
+}
+
+.sat-hand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: #111;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 4px 3px 3px;
+}
+
+.sat-cards {
+    display: flex;
+    gap: 2px;
+}
+
+.sat-slot { display: flex; }
+
+.sat-card {
+    width: 40px;
+    height: 55px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    position: relative;
+    user-select: none;
+    animation: satDealIn 0.2s ease-out both;
+}
+
+@keyframes satDealIn {
+    from { opacity: 0; transform: translateY(-10px) scale(0.88); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.sat-card.back {
+    background: #1a3a8f;
+    border-color: #0d2060;
+    background-image:
+        repeating-linear-gradient(45deg,
+            rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px,
+            transparent 1px, transparent 5px),
+        repeating-linear-gradient(-45deg,
+            rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px,
+            transparent 1px, transparent 5px);
+}
+
+.sat-card.red   { color: #cc0000; }
+.sat-card.black { color: #111; }
+
+.sat-corner {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.1;
+}
+.sat-corner.tl { top: 2px; left: 3px; }
+.sat-corner.br { bottom: 2px; right: 3px; transform: rotate(180deg); }
+
+.sat-rank { font-size: 0.6rem; font-weight: bold; line-height: 1; }
+.sat-suit { font-size: 0.5rem; line-height: 1; }
+
+.sat-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.3rem;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.sat-win {
+    font-size: 0.65rem;
+    font-weight: bold;
+    color: #555;
+    letter-spacing: 1px;
+    text-align: center;
+    height: 1.1em;
+}
+
+.sat-win.winner {
+    color: #ffd700;
+}
+
 /* ─── Cards Area ───────────────────────────────────────────── */
 .cards-area {
     display: flex;
@@ -404,6 +498,25 @@ body {
 }
 
 .hint { color: #777; font-size: 0.77rem; }
+
+.mode-options {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.mode-btn {
+    padding: 7px 20px;
+    background: rgba(255,215,0,0.08);
+    border: 1.5px solid #aa7700;
+    color: #ffd700;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    transition: all 0.1s;
+}
+.mode-btn:hover { background: rgba(255,215,0,0.18); }
+.mode-btn.active { background: #ffd700; color: #000; font-weight: bold; }
 
 .credit-value-options {
     display: flex;
