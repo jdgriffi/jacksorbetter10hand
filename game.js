@@ -446,8 +446,19 @@ function deal() {
     setTimeout(() => {
         state.phase = 'holding';
         area.querySelectorAll('.card').forEach(c => c.classList.add('holdable'));
-        document.getElementById('dealBtn').disabled  = false;
-        updateDisplay();
+        document.getElementById('dealBtn').disabled = false;
+
+        // Check for a winner in the dealt hand
+        state.lastHand = evaluateHand(state.hand);
+
+        renderPayTable();   // highlights the row if there's a winner
+        updateDisplay();    // sets win message to "CLICK CARDS..."
+
+        // Override message to show the hand name when there's a winner
+        if (state.lastHand) {
+            document.getElementById('winMessage').textContent =
+                state.lastHand.toUpperCase();
+        }
     }, 5 * DEAL_INTERVAL);
 }
 
