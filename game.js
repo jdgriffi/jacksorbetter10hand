@@ -24,7 +24,7 @@ const HAND_NAMES = [
 ];
 
 const DEFAULT_PAY_TABLE = {
-    'Royal Flush':    250,  // special: 4000 total for 5-credit bet
+    'Royal Flush':    250,
     'Straight Flush':  50,
     'Four of a Kind':  25,
     'Full House':       9,
@@ -39,16 +39,103 @@ const DEFAULT_PAY_TABLE = {
 
 const state = {
     deck:        [],
-    hand:        [],                          // array of {rank, suit}
+    hand:        [],
     held:        [false,false,false,false,false],
     credits:     100,
     bet:         1,
     creditValue: 0.25,
     payTable:    { ...DEFAULT_PAY_TABLE },
-    phase:       'idle',                      // idle | holding | result
+    phase:       'idle',   // idle | holding | result
     lastWin:     0,
     lastHand:    null,
 };
+
+// ─── Audio (Web Audio API — no files needed) ──────────────────────────────────
+
+let audioCtx = null;
+
+function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+}
+
+function playTick() {
+    try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.18, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.08);
+    } catch (e) { /* audio not available */ }
+}
+
+function playWinFanfare(handName) {
+    try {
+        const ctx = getAudioCtx();
+        const isRoyal = handName === 'Royal Flush';
+        // Ascending notes for a win jingle
+        const notes = isRoyal
+            ? [523, 659, 784, 1047, 1319]
+            : [523, 659, 784, 1047];
+
+        notes.forEach((freq, i) => {
+            const osc  = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'square';
+            const t = ctx.currentTime + i * 0.12;
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            osc.start(t);
+            osc.stop(t + 0.2);
+        });
+    } catch (e) { /* audio not available */ }
+}
+
+// ─── Credit Count-Up ──────────────────────────────────────────────────────────
+
+let countUpTimer = null;
+
+function animateCountUp(from, to, onDone) {
+    if (countUpTimer) clearInterval(countUpTimer);
+    if (to <= from) { onDone && onDone(); return; }
+
+    const el = document.getElementById('creditsDisplay');
+    const winEl = document.getElementById('winDisplay');
+    let current = from;
+    let remaining = to - from;
+
+    // Tick every 80ms for small wins, faster for large wins
+    const interval = Math.max(20, Math.min(80, Math.round(4000 / remaining)));
+
+    countUpTimer = setInterval(() => {
+        current++;
+        remaining--;
+        el.textContent = current;
+
+        // Pulse animation
+        el.classList.remove('counting');
+        void el.offsetWidth; // reflow to restart animation
+        el.classList.add('counting');
+
+        playTick();
+
+        if (remaining <= 0) {
+            clearInterval(countUpTimer);
+            countUpTimer = null;
+            onDone && onDone();
+        }
+    }, interval);
+}
 
 // ─── Deck ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +162,6 @@ function evaluateHand(hand) {
     const ranks = hand.map(c => c.rank);
     const suits = hand.map(c => c.suit);
 
-    // Count rank occurrences
     const rankCounts = {};
     for (const r of ranks) rankCounts[r] = (rankCounts[r] || 0) + 1;
     const counts = Object.values(rankCounts).sort((a, b) => b - a);
@@ -84,11 +170,9 @@ function evaluateHand(hand) {
 
     const nums = ranks.map(r => RANK_VALUE[r]).sort((a, b) => a - b);
     const isNormalStraight = counts[0] === 1 && nums[4] - nums[0] === 4;
-    // Ace-low straight: A-2-3-4-5
     const isAceLow = counts[0] === 1 &&
         JSON.stringify(nums) === JSON.stringify([2,3,4,5,14]);
     const isStraight = isNormalStraight || isAceLow;
-
     const isRoyal = isFlush &&
         JSON.stringify(nums) === JSON.stringify([10,11,12,13,14]);
 
@@ -100,60 +184,71 @@ function evaluateHand(hand) {
     if (isStraight)                         return 'Straight';
     if (counts[0] === 3)                    return 'Three of a Kind';
     if (counts[0] === 2 && counts[1] === 2) return 'Two Pair';
-
     if (counts[0] === 2) {
         const paired = Object.keys(rankCounts).find(r => rankCounts[r] === 2);
-        if (['J','Q','K','A'].includes(paired))  return 'Jacks or Better';
+        if (['J','Q','K','A'].includes(paired)) return 'Jacks or Better';
     }
-
     return null;
 }
 
 function calculatePayout(handName, bet) {
     if (!handName) return 0;
-    // Royal Flush bonus for max bet
     if (handName === 'Royal Flush' && bet === 5) return 4000;
     return state.payTable[handName] * bet;
 }
 
-// ─── Rendering ────────────────────────────────────────────────────────────────
+// ─── Card HTML builders ───────────────────────────────────────────────────────
 
-function cardHTML(card, index) {
+function makeCardEl(card, index) {
     const colorClass = RED_SUITS.has(card.suit) ? 'red' : 'black';
-    const heldClass  = state.held[index] ? 'held' : '';
-    const holdable   = state.phase === 'holding' ? 'holdable' : '';
-    return `
-      <div class="card ${colorClass} ${heldClass} ${holdable}" data-index="${index}">
-        <div class="card-corner top-left">
-          <span class="rank">${card.rank}</span>
-          <span class="suit">${card.suit}</span>
-        </div>
-        <div class="card-center">${card.suit}</div>
-        <div class="card-corner bot-right">
-          <span class="rank">${card.rank}</span>
-          <span class="suit">${card.suit}</span>
-        </div>
+    const el = document.createElement('div');
+    el.className = `card ${colorClass}`;
+    el.dataset.index = index;
+    el.innerHTML = `
+      <div class="card-corner top-left">
+        <span class="rank">${card.rank}</span>
+        <span class="suit">${card.suit}</span>
+      </div>
+      <div class="card-center">${card.suit}</div>
+      <div class="card-corner bot-right">
+        <span class="rank">${card.rank}</span>
+        <span class="suit">${card.suit}</span>
       </div>`;
+    return el;
 }
 
-function backCardHTML(index) {
-    return `<div class="card back" data-index="${index}"></div>`;
+function makeSlotEl(card, index, isBack) {
+    const slot = document.createElement('div');
+    slot.className = 'card-slot';
+    slot.dataset.index = index;
+
+    const label = document.createElement('div');
+    label.className = 'held-label';
+    label.textContent = 'HELD';
+    slot.appendChild(label);
+
+    if (isBack) {
+        const back = document.createElement('div');
+        back.className = 'card back';
+        back.dataset.index = index;
+        slot.appendChild(back);
+    } else {
+        slot.appendChild(makeCardEl(card, index));
+    }
+    return slot;
 }
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
 
 function renderCards() {
     const area = document.getElementById('cardsArea');
-    if (state.hand.length === 0) {
-        area.innerHTML = [0,1,2,3,4].map(backCardHTML).join('');
-        return;
+    area.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+        const isBack = state.hand.length === 0;
+        area.appendChild(makeSlotEl(isBack ? null : state.hand[i], i, isBack));
     }
-    area.innerHTML = state.hand.map((c, i) => cardHTML(c, i)).join('');
-
     if (state.phase === 'holding') {
-        area.querySelectorAll('.card').forEach(el => {
-            el.addEventListener('click', () => {
-                toggleHold(parseInt(el.dataset.index));
-            });
-        });
+        area.querySelectorAll('.card').forEach(c => c.classList.add('holdable'));
     }
 }
 
@@ -165,7 +260,9 @@ function renderPayTable() {
 
         const cells = [1,2,3,4,5].map(b => {
             const pay = (name === 'Royal Flush' && b === 5) ? 4000 : base * b;
-            const cls = b === state.bet ? 'cur-bet' : '';
+            const isCur = b === state.bet;
+            const isCol5 = b === 5;
+            const cls = [isCur ? 'cur-bet' : '', isCol5 ? 'col5' : ''].filter(Boolean).join(' ');
             return `<td class="${cls}">${pay}</td>`;
         }).join('');
 
@@ -188,27 +285,22 @@ function renderPayTableSettings() {
     container.querySelectorAll('input').forEach(inp => {
         inp.addEventListener('change', () => {
             const val = parseInt(inp.value);
-            if (val > 0) {
-                state.payTable[inp.dataset.hand] = val;
-                renderPayTable();
-            }
+            if (val > 0) { state.payTable[inp.dataset.hand] = val; renderPayTable(); }
         });
     });
 }
 
-function fmt(val) {
+function formatCreditBadge(val) {
+    if (val < 1)  return Math.round(val * 100) + '¢';
+    if (val === Math.floor(val)) return '$' + val;
     return '$' + val.toFixed(2);
 }
 
 function updateDisplay() {
+    document.getElementById('betDisplay').textContent     = state.bet;
+    document.getElementById('winDisplay').textContent     = state.lastWin;
     document.getElementById('creditsDisplay').textContent = state.credits;
-    document.getElementById('creditsDollar').textContent  = fmt(state.credits * state.creditValue);
-
-    document.getElementById('betDisplay').textContent = state.bet;
-    document.getElementById('betDollar').textContent  = fmt(state.bet * state.creditValue);
-
-    document.getElementById('winDisplay').textContent = state.lastWin;
-    document.getElementById('winDollar').textContent  = fmt(state.lastWin * state.creditValue);
+    document.getElementById('creditValBadge').textContent = formatCreditBadge(state.creditValue * state.bet);
 
     // Deal / Draw button
     const dealBtn = document.getElementById('dealBtn');
@@ -225,33 +317,20 @@ function updateDisplay() {
     document.getElementById('betOneBtn').disabled = inHolding;
     document.getElementById('maxBetBtn').disabled = inHolding;
 
-    // Hold buttons
-    document.querySelectorAll('.hold-btn').forEach((btn, i) => {
-        btn.disabled = state.phase !== 'holding';
-        btn.classList.toggle('active', state.held[i]);
-    });
-
     // Win message
     const msg = document.getElementById('winMessage');
     if (state.phase === 'result') {
         if (state.lastHand) {
-            msg.textContent = `\u2728 ${state.lastHand.toUpperCase()}!  +${state.lastWin} credits`;
-            msg.style.color = '#ffd700';
+            msg.textContent = state.lastHand.toUpperCase();
         } else {
-            msg.textContent = 'No winner \u2014 deal again!';
-            msg.style.color = '#ff8888';
+            msg.textContent = 'NO WINNER';
         }
     } else if (state.phase === 'holding') {
-        msg.textContent = 'Select cards to HOLD, then DRAW';
-        msg.style.color = '#ffd700';
+        msg.textContent = 'CLICK CARDS OR BUTTONS TO HOLD';
     } else {
-        if (state.credits === 0) {
-            msg.textContent = 'Out of credits! Reset in Settings.';
-            msg.style.color = '#ff5555';
-        } else {
-            msg.textContent = 'Place your bet and deal!';
-            msg.style.color = '#ffd700';
-        }
+        msg.textContent = state.credits === 0
+            ? 'OUT OF CREDITS  —  ADD CREDITS IN MENU'
+            : '\u00a0';
     }
 }
 
@@ -261,22 +340,14 @@ function toggleHold(index) {
     if (state.phase !== 'holding') return;
     state.held[index] = !state.held[index];
 
-    // Update only the affected card — avoid re-rendering all cards
-    const card = document.querySelectorAll('#cardsArea .card')[index];
-    if (card) card.classList.toggle('held', state.held[index]);
-
-    // Sync the hold button
-    const btn = document.querySelectorAll('.hold-btn')[index];
-    if (btn) btn.classList.toggle('active', state.held[index]);
+    const slot = document.querySelectorAll('#cardsArea .card-slot')[index];
+    if (slot) slot.classList.toggle('held', state.held[index]);
 }
 
 function deal() {
-    if (state.phase === 'holding') {
-        draw();
-        return;
-    }
+    if (state.phase === 'holding') { draw(); return; }
     if (state.credits < state.bet) {
-        document.getElementById('winMessage').textContent = 'Not enough credits!';
+        document.getElementById('winMessage').textContent = 'NOT ENOUGH CREDITS';
         return;
     }
 
@@ -299,7 +370,6 @@ function draw() {
         if (!state.held[i]) toReplace.push(i);
     }
 
-    // Draw new cards into state
     for (const i of toReplace) {
         state.hand[i] = state.deck.splice(0, 1)[0];
     }
@@ -309,52 +379,61 @@ function draw() {
 
     state.lastHand = handName;
     state.lastWin  = payout;
-    state.credits += payout;
     state.phase    = 'result';
     state.held     = [false,false,false,false,false];
 
-    // Remove HOLD stamp and lift from kept cards immediately
-    document.querySelectorAll('#cardsArea .card.held').forEach(el => {
+    // Remove HELD styling from kept cards
+    document.querySelectorAll('#cardsArea .card-slot.held').forEach(el => {
         el.classList.remove('held');
     });
 
     // Disable deal button during animation
     document.getElementById('dealBtn').disabled = true;
+    document.getElementById('betOneBtn').disabled = true;
+    document.getElementById('maxBetBtn').disabled = true;
 
-    // Animate each replaced card one at a time
-    const cardEls = Array.from(document.querySelectorAll('#cardsArea .card'));
-    const INTERVAL = 220; // ms between each new card
+    const slots = Array.from(document.querySelectorAll('#cardsArea .card-slot'));
+    const INTERVAL = 220;
 
     toReplace.forEach((cardIndex, seq) => {
         setTimeout(() => {
             const card = state.hand[cardIndex];
-            const colorClass = RED_SUITS.has(card.suit) ? 'red' : 'black';
-            const newEl = document.createElement('div');
-            newEl.className = `card ${colorClass}`;
-            newEl.dataset.index = cardIndex;
-            // Override nth-child animation-delay so each card animates the
-            // moment it appears, not with the staggered initial-deal offset
-            newEl.style.animationDelay = '0ms';
-            newEl.innerHTML = `
-              <div class="card-corner top-left">
-                <span class="rank">${card.rank}</span>
-                <span class="suit">${card.suit}</span>
-              </div>
-              <div class="card-center">${card.suit}</div>
-              <div class="card-corner bot-right">
-                <span class="rank">${card.rank}</span>
-                <span class="suit">${card.suit}</span>
-              </div>`;
-            cardEls[cardIndex].replaceWith(newEl);
+            const newCardEl = makeCardEl(card, cardIndex);
+            newCardEl.style.animationDelay = '0ms';
+
+            const slot = slots[cardIndex];
+            const oldCard = slot.querySelector('.card');
+            slot.replaceChild(newCardEl, oldCard);
         }, seq * INTERVAL);
     });
 
-    // Update UI after the last card finishes animating
+    // After cards land: play fanfare then count up credits
+    const cardsDone = toReplace.length * INTERVAL + 350;
     setTimeout(() => {
-        document.getElementById('dealBtn').disabled = false;
         renderPayTable();
-        updateDisplay();
-    }, toReplace.length * INTERVAL + 350);
+        updateDisplay();  // shows hand name, resets win display
+
+        if (payout > 0) {
+            playWinFanfare(handName);
+            const creditsBeforeWin = state.credits;
+            state.credits += payout;
+
+            setTimeout(() => {
+                animateCountUp(creditsBeforeWin, state.credits, () => {
+                    document.getElementById('creditsDisplay').classList.remove('counting');
+                    enableButtons();
+                });
+            }, 300);
+        } else {
+            enableButtons();
+        }
+    }, cardsDone);
+}
+
+function enableButtons() {
+    document.getElementById('dealBtn').disabled = false;
+    document.getElementById('betOneBtn').disabled = false;
+    document.getElementById('maxBetBtn').disabled = false;
 }
 
 function betOne() {
@@ -384,7 +463,6 @@ function closeSettings() {
 
 function setCreditValue(val) {
     state.creditValue = val;
-    // Sync active button state
     document.querySelectorAll('.cv-btn').forEach(btn => {
         btn.classList.toggle('active', parseFloat(btn.dataset.value) === val);
     });
@@ -394,29 +472,29 @@ function setCreditValue(val) {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 function init() {
-    // Render empty card backs on load
     renderCards();
     renderPayTable();
     updateDisplay();
 
-    // Action bar
+    // Card click — event delegation on cards-area
+    document.getElementById('cardsArea').addEventListener('click', e => {
+        const card = e.target.closest('.card');
+        if (!card || !card.classList.contains('holdable')) return;
+        toggleHold(parseInt(card.dataset.index));
+    });
+
+    // Action buttons
     document.getElementById('dealBtn').addEventListener('click', deal);
     document.getElementById('betOneBtn').addEventListener('click', betOne);
     document.getElementById('maxBetBtn').addEventListener('click', betMax);
+    document.getElementById('menuBtn').addEventListener('click', openSettings);
 
-    // Hold buttons (also handled per-card via renderCards)
-    document.querySelectorAll('.hold-btn').forEach(btn => {
-        btn.addEventListener('click', () => toggleHold(parseInt(btn.dataset.index)));
-    });
-
-    // Settings open / close
-    document.getElementById('settingsBtn').addEventListener('click', openSettings);
+    // Settings modal
     document.getElementById('closeSettings').addEventListener('click', closeSettings);
     document.getElementById('settingsModal').addEventListener('click', e => {
         if (e.target === document.getElementById('settingsModal')) closeSettings();
     });
 
-    // Save button — brief "Saved!" flash then close
     document.getElementById('saveSettingsBtn').addEventListener('click', () => {
         const btn = document.getElementById('saveSettingsBtn');
         btn.textContent = '\u2713 Saved!';
@@ -428,32 +506,20 @@ function init() {
         }, 700);
     });
 
-    // Credit value preset buttons
+    // Credit value buttons
     document.querySelectorAll('.cv-btn').forEach(btn => {
         btn.addEventListener('click', () => setCreditValue(parseFloat(btn.dataset.value)));
     });
 
-    // Custom credit value
     document.getElementById('setCreditValueBtn').addEventListener('click', () => {
         const val = parseFloat(document.getElementById('customCreditValue').value);
         if (val > 0) setCreditValue(val);
     });
 
-    // Reset credits
+    // Add credits
     document.getElementById('resetCreditsBtn').addEventListener('click', () => {
         const val = parseInt(document.getElementById('startingCredits').value);
-        if (val > 0) {
-            state.credits = val;
-            state.phase   = 'idle';
-            state.hand    = [];
-            state.held    = [false,false,false,false,false];
-            state.lastWin  = 0;
-            state.lastHand = null;
-            renderCards();
-            renderPayTable();
-            updateDisplay();
-            closeSettings();
-        }
+        if (val > 0) { state.credits += val; updateDisplay(); }
     });
 
     // Reset pay table
@@ -465,13 +531,14 @@ function init() {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {
+        if (document.getElementById('settingsModal').classList.contains('active')) return;
         switch (e.key) {
             case ' ':  e.preventDefault(); deal(); break;
-            case '1':  if (state.phase === 'holding') toggleHold(0); break;
-            case '2':  if (state.phase === 'holding') toggleHold(1); break;
-            case '3':  if (state.phase === 'holding') toggleHold(2); break;
-            case '4':  if (state.phase === 'holding') toggleHold(3); break;
-            case '5':  if (state.phase === 'holding') toggleHold(4); break;
+            case '1':  toggleHold(0); break;
+            case '2':  toggleHold(1); break;
+            case '3':  toggleHold(2); break;
+            case '4':  toggleHold(3); break;
+            case '5':  toggleHold(4); break;
             case 'b':  betOne(); break;
             case 'm':  betMax(); break;
         }

@@ -7,116 +7,103 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="game-wrapper">
+<div class="game-wrapper">
 
-        <button class="settings-btn" id="settingsBtn" title="Settings">&#9881;</button>
-
-        <div class="game-title">JACKS OR BETTER</div>
-
-        <!-- Pay Table -->
-        <div class="pay-table-wrap">
-            <table class="pay-table" id="payTable">
-                <thead>
-                    <tr>
-                        <th class="hand-col">Hand</th>
-                        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
-                    </tr>
-                </thead>
-                <tbody id="payTableBody"></tbody>
-            </table>
-        </div>
-
-        <!-- Win Message -->
-        <div class="win-message" id="winMessage">Place your bet and deal!</div>
-
-        <!-- Cards -->
-        <div class="cards-area" id="cardsArea"></div>
-
-        <!-- Hold Buttons -->
-        <div class="hold-buttons">
-            <button class="hold-btn" data-index="0">HOLD</button>
-            <button class="hold-btn" data-index="1">HOLD</button>
-            <button class="hold-btn" data-index="2">HOLD</button>
-            <button class="hold-btn" data-index="3">HOLD</button>
-            <button class="hold-btn" data-index="4">HOLD</button>
-        </div>
-
-        <!-- Info Bar -->
-        <div class="info-bar">
-            <div class="info-item">
-                <span class="info-label">CREDITS</span>
-                <span class="info-value" id="creditsDisplay">100</span>
-                <span class="info-sub" id="creditsDollar">$25.00</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">BET</span>
-                <span class="info-value" id="betDisplay">1</span>
-                <span class="info-sub" id="betDollar">$0.25</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">WIN</span>
-                <span class="info-value" id="winDisplay">0</span>
-                <span class="info-sub" id="winDollar">$0.00</span>
-            </div>
-        </div>
-
-        <!-- Action Bar -->
-        <div class="action-bar">
-            <button class="bet-btn" id="betOneBtn">BET ONE</button>
-            <button class="deal-btn" id="dealBtn">DEAL</button>
-            <button class="bet-btn" id="maxBetBtn">BET MAX</button>
-        </div>
-
+    <!-- Pay Table -->
+    <div class="pay-table-wrap">
+        <div class="pay-table-title">JACKS OR BETTER</div>
+        <table class="pay-table" id="payTable">
+            <thead>
+                <tr>
+                    <th class="hand-col"></th>
+                    <th>1</th><th>2</th><th>3</th><th>4</th><th class="col5">5</th>
+                </tr>
+            </thead>
+            <tbody id="payTableBody"></tbody>
+        </table>
     </div>
 
-    <!-- Settings Modal -->
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>SETTINGS</h2>
-                <button class="modal-close" id="closeSettings">&#10005;</button>
-            </div>
-            <div class="modal-body">
+    <!-- Win Message -->
+    <div class="win-message" id="winMessage">&nbsp;</div>
 
-                <div class="settings-section">
-                    <h3>Credit Value</h3>
-                    <div class="credit-value-options">
-                        <button class="cv-btn" data-value="0.05">$0.05</button>
-                        <button class="cv-btn" data-value="0.10">$0.10</button>
-                        <button class="cv-btn active" data-value="0.25">$0.25</button>
-                        <button class="cv-btn" data-value="0.50">$0.50</button>
-                        <button class="cv-btn" data-value="1.00">$1.00</button>
-                        <button class="cv-btn" data-value="5.00">$5.00</button>
-                    </div>
-                    <div class="custom-row">
-                        <label>Custom: $<input type="number" id="customCreditValue" min="0.01" step="0.01" placeholder="0.00"></label>
-                        <button class="small-btn" id="setCreditValueBtn">Set</button>
-                    </div>
-                </div>
+    <!-- Cards -->
+    <div class="cards-area" id="cardsArea"></div>
 
-                <div class="settings-section">
-                    <h3>Credits</h3>
-                    <div class="custom-row">
-                        <label>Starting credits: <input type="number" id="startingCredits" value="100" min="1" style="width:80px"></label>
-                        <button class="small-btn" id="resetCreditsBtn">Reset</button>
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <h3>Pay Table <span class="hint">(multiplier per credit bet)</span></h3>
-                    <div class="pay-table-settings" id="payTableSettings"></div>
-                    <p class="hint" style="margin-top:6px">* Royal Flush always pays 4000 credits on a 5-credit bet.</p>
-                    <button class="reset-btn" id="resetPayTableBtn">Reset to Default (9/6)</button>
-                </div>
-
-            </div>
-
-            <div class="modal-footer">
-                <button class="save-btn" id="saveSettingsBtn">&#10003; Save &amp; Return to Game</button>
-            </div>
+    <!-- Info Bar -->
+    <div class="info-bar">
+        <div class="info-item win-side">
+            <span class="info-label">WIN</span>
+            <span class="info-value" id="winDisplay">0</span>
+        </div>
+        <div class="info-item bet-center">
+            <span class="bet-star">&#9733;</span>
+            <span class="info-label">BET</span>
+            <span class="info-value" id="betDisplay">1</span>
+            <span class="credit-val-badge" id="creditValBadge">25&#162;</span>
+        </div>
+        <div class="info-item credits-side">
+            <span class="info-label">CREDITS</span>
+            <span class="info-value" id="creditsDisplay">100</span>
         </div>
     </div>
 
-    <script src="game.js"></script>
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <button class="action-btn menu-btn" id="menuBtn">MENU</button>
+        <button class="action-btn" id="betOneBtn">BET UP</button>
+        <button class="action-btn" id="maxBetBtn">BET MAX</button>
+        <button class="action-btn deal-btn" id="dealBtn">DEAL</button>
+    </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>SETTINGS</h2>
+            <button class="modal-close" id="closeSettings">&#10005;</button>
+        </div>
+        <div class="modal-body">
+
+            <div class="settings-section">
+                <h3>Credit Value</h3>
+                <div class="credit-value-options">
+                    <button class="cv-btn" data-value="0.05">5&#162;</button>
+                    <button class="cv-btn" data-value="0.10">10&#162;</button>
+                    <button class="cv-btn active" data-value="0.25">25&#162;</button>
+                    <button class="cv-btn" data-value="0.50">50&#162;</button>
+                    <button class="cv-btn" data-value="1.00">$1</button>
+                    <button class="cv-btn" data-value="5.00">$5</button>
+                </div>
+                <div class="custom-row">
+                    <label>Custom: $<input type="number" id="customCreditValue" min="0.01" step="0.01" placeholder="0.00"></label>
+                    <button class="small-btn" id="setCreditValueBtn">Set</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Credits</h3>
+                <div class="custom-row">
+                    <label>Add credits: <input type="number" id="startingCredits" value="100" min="1" style="width:80px"></label>
+                    <button class="small-btn" id="resetCreditsBtn">Add</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Pay Table <span class="hint">(multiplier per credit bet)</span></h3>
+                <div class="pay-table-settings" id="payTableSettings"></div>
+                <p class="hint" style="margin-top:6px">* Royal Flush always pays 4000 credits on a 5-credit bet.</p>
+                <button class="reset-btn" id="resetPayTableBtn">Reset to Default (9/6)</button>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="save-btn" id="saveSettingsBtn">&#10003; Save &amp; Return to Game</button>
+        </div>
+    </div>
+</div>
+
+<script src="game.js"></script>
 </body>
 </html>
