@@ -177,6 +177,7 @@ function animateCountUp(from, to, onDone) {
         current++;
         remaining--;
         el.textContent = current;
+        document.getElementById('creditsDollar').textContent = '$' + (current * state.creditValue).toFixed(2);
 
         // Pulse animation
         el.classList.remove('counting');
@@ -357,6 +358,7 @@ function updateDisplay() {
     document.getElementById('winDisplay').textContent     = state.lastWin;
     document.getElementById('creditsDisplay').textContent = state.credits;
     document.getElementById('creditValBadge').textContent = formatCreditBadge(state.creditValue * state.bet);
+    document.getElementById('creditsDollar').textContent  = '$' + (state.credits * state.creditValue).toFixed(2);
 
     // Deal / Draw button
     const dealBtn = document.getElementById('dealBtn');

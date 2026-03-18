@@ -257,6 +257,13 @@ body {
 .win-side .info-value  { color: #ff4400; }
 .credits-side .info-value { color: #ffd700; }
 
+.info-dollar {
+    display: block;
+    color: #aaa;
+    font-size: 0.75rem;
+    text-align: right;
+}
+
 .bet-center {
     flex-direction: column;
     gap: 2px;
