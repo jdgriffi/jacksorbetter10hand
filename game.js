@@ -96,23 +96,19 @@ function playBetClick() {
 function playDeal() {
     try {
         const ctx = getAudioCtx();
-        // Five quick card-slap thuds, one per card
-        for (let i = 0; i < 5; i++) {
-            const buf  = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
-            const data = buf.getChannelData(0);
-            for (let s = 0; s < data.length; s++) {
-                data[s] = (Math.random() * 2 - 1) * Math.pow(1 - s / data.length, 3);
-            }
-            const src  = ctx.createBufferSource();
-            const gain = ctx.createGain();
-            src.buffer = buf;
-            src.connect(gain);
-            gain.connect(ctx.destination);
-            const t = ctx.currentTime + i * 0.1;
-            gain.gain.setValueAtTime(0.35, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-            src.start(t);
+        const buf  = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let s = 0; s < data.length; s++) {
+            data[s] = (Math.random() * 2 - 1) * Math.pow(1 - s / data.length, 3);
         }
+        const src  = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        src.buffer = buf;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.35, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+        src.start(ctx.currentTime);
     } catch (e) { /* audio not available */ }
 }
 
@@ -387,6 +383,8 @@ function updateDisplay() {
         }
     } else if (state.phase === 'holding') {
         msg.textContent = 'CLICK CARDS OR BUTTONS TO HOLD';
+    } else if (state.phase === 'dealing') {
+        msg.textContent = '\u00a0';
     } else {
         msg.textContent = state.credits === 0
             ? 'OUT OF CREDITS  —  ADD CREDITS IN MENU'
@@ -417,12 +415,40 @@ function deal() {
     state.held      = [false,false,false,false,false];
     state.deck      = createDeck();
     state.hand      = state.deck.splice(0, 5);
-    state.phase     = 'holding';
+    state.phase     = 'dealing';
 
-    playDeal();
-    renderCards();
+    // Show five card backs immediately, then flip one at a time
+    const area = document.getElementById('cardsArea');
+    area.innerHTML = '';
+    for (let i = 0; i < 5; i++) area.appendChild(makeSlotEl(null, i, true));
+
     renderPayTable();
     updateDisplay();
+
+    // Lock buttons during deal animation
+    document.getElementById('dealBtn').disabled  = true;
+    document.getElementById('betOneBtn').disabled = true;
+    document.getElementById('maxBetBtn').disabled = true;
+
+    const DEAL_INTERVAL = 200;
+    const slots = Array.from(area.querySelectorAll('.card-slot'));
+
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            const newCardEl = makeCardEl(state.hand[i], i);
+            newCardEl.style.animationDelay = '0ms';
+            slots[i].replaceChild(newCardEl, slots[i].querySelector('.card'));
+            playDeal();
+        }, i * DEAL_INTERVAL);
+    }
+
+    // After last card lands, enable holding
+    setTimeout(() => {
+        state.phase = 'holding';
+        area.querySelectorAll('.card').forEach(c => c.classList.add('holdable'));
+        document.getElementById('dealBtn').disabled  = false;
+        updateDisplay();
+    }, 5 * DEAL_INTERVAL);
 }
 
 function draw() {
