@@ -454,10 +454,11 @@ function deal() {
         renderPayTable();   // highlights the row if there's a winner
         updateDisplay();    // sets win message to "CLICK CARDS..."
 
-        // Override message to show the hand name when there's a winner
+        // Override message and play fanfare when dealt a winner
         if (state.lastHand) {
             document.getElementById('winMessage').textContent =
                 state.lastHand.toUpperCase();
+            playWinFanfare(state.lastHand);
         }
     }, 5 * DEAL_INTERVAL);
 }
