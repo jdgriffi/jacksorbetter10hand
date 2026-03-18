@@ -260,8 +260,14 @@ function updateDisplay() {
 function toggleHold(index) {
     if (state.phase !== 'holding') return;
     state.held[index] = !state.held[index];
-    renderCards();
-    updateDisplay();
+
+    // Update only the affected card — avoid re-rendering all cards
+    const card = document.querySelectorAll('#cardsArea .card')[index];
+    if (card) card.classList.toggle('held', state.held[index]);
+
+    // Sync the hold button
+    const btn = document.querySelectorAll('.hold-btn')[index];
+    if (btn) btn.classList.toggle('active', state.held[index]);
 }
 
 function deal() {
