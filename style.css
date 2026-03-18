@@ -517,6 +517,43 @@ body {
 
 .reset-btn:hover { background: rgba(200,0,0,0.3); }
 
+/* ─── Modal Footer / Save Button ──────────────────────────── */
+.modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid rgba(255,215,0,0.2);
+    display: flex;
+    justify-content: center;
+}
+
+.save-btn {
+    padding: 13px 50px;
+    background: linear-gradient(180deg, #ffd700, #b8860b);
+    color: #1a0a00;
+    border: 2px solid #8b6508;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1.05rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+    transition: all 0.15s;
+    width: 100%;
+    max-width: 320px;
+}
+
+.save-btn:hover {
+    background: linear-gradient(180deg, #ffe44d, #d4a017);
+    transform: translateY(-1px);
+}
+
+.save-btn:active { transform: translateY(1px); }
+
+.save-btn.saved {
+    background: linear-gradient(180deg, #33cc33, #227722);
+    border-color: #0a4a0a;
+    color: #fff;
+}
+
 /* ─── Responsive tweak ─────────────────────────────────────── */
 @media (max-width: 740px) {
     .game-wrapper { width: 100%; }

@@ -368,6 +368,18 @@ function init() {
         if (e.target === document.getElementById('settingsModal')) closeSettings();
     });
 
+    // Save button — brief "Saved!" flash then close
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+        const btn = document.getElementById('saveSettingsBtn');
+        btn.textContent = '\u2713 Saved!';
+        btn.classList.add('saved');
+        setTimeout(() => {
+            btn.textContent = '\u2713 Save \u0026 Return to Game';
+            btn.classList.remove('saved');
+            closeSettings();
+        }, 700);
+    });
+
     // Credit value preset buttons
     document.querySelectorAll('.cv-btn').forEach(btn => {
         btn.addEventListener('click', () => setCreditValue(parseFloat(btn.dataset.value)));
