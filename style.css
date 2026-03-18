@@ -204,6 +204,20 @@ body {
     color: #ffd700;
 }
 
+.sat-hand.winner {
+    background: rgba(255, 180, 0, 0.12);
+    border-color: #ffd700;
+    border-width: 2px;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.55), inset 0 0 8px rgba(255, 215, 0, 0.08);
+    animation: satWinPulse 0.6s ease-out both;
+}
+
+@keyframes satWinPulse {
+    0%   { box-shadow: 0 0 0px rgba(255,215,0,0); background: rgba(255,215,0,0); }
+    50%  { box-shadow: 0 0 18px rgba(255,215,0,0.8), inset 0 0 12px rgba(255,215,0,0.15); background: rgba(255,180,0,0.22); }
+    100% { box-shadow: 0 0 10px rgba(255,215,0,0.55), inset 0 0 8px rgba(255,215,0,0.08); background: rgba(255,180,0,0.12); }
+}
+
 /* ─── Cards Area ───────────────────────────────────────────── */
 .cards-area {
     display: flex;
@@ -211,6 +225,19 @@ body {
     gap: 8px;
     padding: 10px 10px 6px;
     background: #111;
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+.cards-area.winner {
+    background: rgba(255, 180, 0, 0.10);
+    box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.18);
+    animation: mainWinPulse 0.6s ease-out both;
+}
+
+@keyframes mainWinPulse {
+    0%   { box-shadow: inset 0 0 0px rgba(255,215,0,0); background: #111; }
+    50%  { box-shadow: inset 0 0 30px rgba(255,215,0,0.35); background: rgba(255,180,0,0.18); }
+    100% { box-shadow: inset 0 0 20px rgba(255,215,0,0.18); background: rgba(255,180,0,0.10); }
 }
 
 /* ─── Card Slot (wrapper with HELD label) ──────────────────── */

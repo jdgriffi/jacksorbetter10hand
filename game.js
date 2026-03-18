@@ -384,8 +384,10 @@ function updateDisplay() {
     if (state.phase === 'result') {
         if (state.lastHand) {
             msg.textContent = state.lastHand.toUpperCase();
-        } else {
+        } else if (state.lastWin === 0) {
             msg.textContent = 'NO WINNER';
+        } else {
+            msg.textContent = '\u00a0';
         }
     } else if (state.phase === 'holding') {
         msg.textContent = 'CLICK CARDS OR BUTTONS TO HOLD';
@@ -453,22 +455,22 @@ function initSatelliteHands() {
     }
 }
 
-// Sync satellite hand displays whenever a hold is toggled
-function updateSatelliteForHold() {
+// Sync satellite hand displays whenever a hold is toggled — only updates the changed column
+function updateSatelliteForHold(changedIndex) {
     if (!state.multiHand) return;
+    const isHeld = state.held[changedIndex];
     document.querySelectorAll('.sat-hand').forEach(handEl => {
-        const slots = handEl.querySelectorAll('.sat-slot');
-        for (let c = 0; c < 5; c++) {
-            slots[c].innerHTML = '';
-            if (state.held[c]) {
-                const cardEl = makeSatCardEl(state.hand[c]);
-                cardEl.style.animationDelay = '0ms';
-                slots[c].appendChild(cardEl);
-            } else {
-                const back = document.createElement('div');
-                back.className = 'sat-card back';
-                slots[c].appendChild(back);
-            }
+        const slot = handEl.querySelector(`.sat-slot[data-pos="${changedIndex}"]`);
+        if (!slot) return;
+        slot.innerHTML = '';
+        if (isHeld) {
+            const cardEl = makeSatCardEl(state.hand[changedIndex]);
+            cardEl.style.animationDelay = '0ms';
+            slot.appendChild(cardEl);
+        } else {
+            const back = document.createElement('div');
+            back.className = 'sat-card back';
+            slot.appendChild(back);
         }
     });
 }
@@ -502,7 +504,7 @@ function toggleHold(index) {
     const slot = document.querySelectorAll('#cardsArea .card-slot')[index];
     if (slot) slot.classList.toggle('held', state.held[index]);
 
-    updateSatelliteForHold();
+    updateSatelliteForHold(index);
 }
 
 function deal() {
@@ -523,6 +525,7 @@ function deal() {
 
     // Show five card backs immediately, then flip one at a time
     const area = document.getElementById('cardsArea');
+    area.classList.remove('winner');
     area.innerHTML = '';
     for (let i = 0; i < 5; i++) area.appendChild(makeSlotEl(null, i, true));
 
@@ -637,12 +640,17 @@ function draw() {
                 if (pay > 0) {
                     winEl.textContent = (name || '') + ' +' + pay;
                     winEl.classList.add('winner');
+                    handEl.classList.add('winner');
                 } else {
                     winEl.textContent = '\u00a0';
                     winEl.classList.remove('winner');
+                    handEl.classList.remove('winner');
                 }
             });
         }
+
+        // Highlight main hand area if it won
+        document.getElementById('cardsArea').classList.toggle('winner', mainPay > 0);
 
         renderPayTable();
         updateDisplay();
