@@ -294,11 +294,14 @@ function deal() {
 }
 
 function draw() {
-    // Replace non-held cards
+    const toReplace = [];
     for (let i = 0; i < 5; i++) {
-        if (!state.held[i]) {
-            state.hand[i] = state.deck.splice(0, 1)[0];
-        }
+        if (!state.held[i]) toReplace.push(i);
+    }
+
+    // Draw new cards into state
+    for (const i of toReplace) {
+        state.hand[i] = state.deck.splice(0, 1)[0];
     }
 
     const handName = evaluateHand(state.hand);
@@ -310,9 +313,48 @@ function draw() {
     state.phase    = 'result';
     state.held     = [false,false,false,false,false];
 
-    renderCards();
-    renderPayTable();
-    updateDisplay();
+    // Remove HOLD stamp and lift from kept cards immediately
+    document.querySelectorAll('#cardsArea .card.held').forEach(el => {
+        el.classList.remove('held');
+    });
+
+    // Disable deal button during animation
+    document.getElementById('dealBtn').disabled = true;
+
+    // Animate each replaced card one at a time
+    const cardEls = Array.from(document.querySelectorAll('#cardsArea .card'));
+    const INTERVAL = 220; // ms between each new card
+
+    toReplace.forEach((cardIndex, seq) => {
+        setTimeout(() => {
+            const card = state.hand[cardIndex];
+            const colorClass = RED_SUITS.has(card.suit) ? 'red' : 'black';
+            const newEl = document.createElement('div');
+            newEl.className = `card ${colorClass}`;
+            newEl.dataset.index = cardIndex;
+            // Override nth-child animation-delay so each card animates the
+            // moment it appears, not with the staggered initial-deal offset
+            newEl.style.animationDelay = '0ms';
+            newEl.innerHTML = `
+              <div class="card-corner top-left">
+                <span class="rank">${card.rank}</span>
+                <span class="suit">${card.suit}</span>
+              </div>
+              <div class="card-center">${card.suit}</div>
+              <div class="card-corner bot-right">
+                <span class="rank">${card.rank}</span>
+                <span class="suit">${card.suit}</span>
+              </div>`;
+            cardEls[cardIndex].replaceWith(newEl);
+        }, seq * INTERVAL);
+    });
+
+    // Update UI after the last card finishes animating
+    setTimeout(() => {
+        document.getElementById('dealBtn').disabled = false;
+        renderPayTable();
+        updateDisplay();
+    }, toReplace.length * INTERVAL + 350);
 }
 
 function betOne() {
