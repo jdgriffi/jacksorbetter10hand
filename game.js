@@ -76,6 +76,66 @@ function playTick() {
     } catch (e) { /* audio not available */ }
 }
 
+function playBetClick() {
+    try {
+        const ctx = getAudioCtx();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(420, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(560, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.09);
+    } catch (e) { /* audio not available */ }
+}
+
+function playDeal() {
+    try {
+        const ctx = getAudioCtx();
+        // Five quick card-slap thuds, one per card
+        for (let i = 0; i < 5; i++) {
+            const buf  = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let s = 0; s < data.length; s++) {
+                data[s] = (Math.random() * 2 - 1) * Math.pow(1 - s / data.length, 3);
+            }
+            const src  = ctx.createBufferSource();
+            const gain = ctx.createGain();
+            src.buffer = buf;
+            src.connect(gain);
+            gain.connect(ctx.destination);
+            const t = ctx.currentTime + i * 0.1;
+            gain.gain.setValueAtTime(0.35, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+            src.start(t);
+        }
+    } catch (e) { /* audio not available */ }
+}
+
+function playDraw() {
+    try {
+        const ctx = getAudioCtx();
+        // Softer single whoosh per drawn card — caller spaces them out
+        const buf  = ctx.createBuffer(1, ctx.sampleRate * 0.07, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let s = 0; s < data.length; s++) {
+            data[s] = (Math.random() * 2 - 1) * Math.pow(1 - s / data.length, 2.5);
+        }
+        const src  = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        src.buffer = buf;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+        src.start(ctx.currentTime);
+    } catch (e) { /* audio not available */ }
+}
+
 function playWinFanfare(handName) {
     try {
         const ctx = getAudioCtx();
@@ -359,6 +419,7 @@ function deal() {
     state.hand      = state.deck.splice(0, 5);
     state.phase     = 'holding';
 
+    playDeal();
     renderCards();
     renderPayTable();
     updateDisplay();
@@ -404,6 +465,7 @@ function draw() {
             const slot = slots[cardIndex];
             const oldCard = slot.querySelector('.card');
             slot.replaceChild(newCardEl, oldCard);
+            playDraw();
         }, seq * INTERVAL);
     });
 
@@ -439,6 +501,7 @@ function enableButtons() {
 function betOne() {
     if (state.phase === 'holding') return;
     state.bet = state.bet >= 5 ? 1 : state.bet + 1;
+    playBetClick();
     renderPayTable();
     updateDisplay();
 }
@@ -446,6 +509,7 @@ function betOne() {
 function betMax() {
     if (state.phase === 'holding') return;
     state.bet = 5;
+    playBetClick();
     renderPayTable();
     updateDisplay();
 }
