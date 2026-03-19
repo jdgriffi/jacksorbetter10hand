@@ -49,9 +49,12 @@ const state = {
     lastWin:     0,
     lastHand:    null,
     // Multi-hand
-    multiHand:   false,
+    multiHand:   true,
     satCards:    [],       // [9][5] — satellite hand cards after draw
     satWins:     [],       // [9]   — payout per satellite hand
+    // Statistics
+    stats: { handsPlayed: 0, totalWagered: 0, totalReturned: 0 },
+    dollarsPerPoint: 10,
 };
 
 // ─── Audio (Web Audio API — no files needed) ──────────────────────────────────
@@ -382,9 +385,7 @@ function updateDisplay() {
     // Win message
     const msg = document.getElementById('winMessage');
     if (state.phase === 'result') {
-        if (state.lastHand) {
-            msg.textContent = state.lastHand.toUpperCase();
-        } else if (state.lastWin === 0) {
+        if (state.lastWin === 0) {
             msg.textContent = 'NO WINNER';
         } else {
             msg.textContent = '\u00a0';
@@ -398,6 +399,25 @@ function updateDisplay() {
             ? 'OUT OF CREDITS  —  ADD CREDITS IN MENU'
             : '\u00a0';
     }
+}
+
+function renderStats() {
+    const { handsPlayed, totalWagered, totalReturned } = state.stats;
+    const wageredDollars  = totalWagered  * state.creditValue;
+    const returnedDollars = totalReturned * state.creditValue;
+    const rtp = totalWagered > 0 ? (totalReturned / totalWagered * 100) : null;
+    // Cost per point: net spend / (total wagered / dollarsPerPoint)
+    const points = totalWagered > 0 ? wageredDollars / state.dollarsPerPoint : 0;
+    const netSpend = wageredDollars - returnedDollars;
+    const costPerPoint = points > 0 ? netSpend / points : null;
+
+    document.getElementById('statHands').textContent    = handsPlayed;
+    document.getElementById('statWagered').textContent  = '$' + wageredDollars.toFixed(2);
+    document.getElementById('statReturned').textContent = '$' + returnedDollars.toFixed(2);
+    document.getElementById('statRtp').textContent      = rtp !== null ? rtp.toFixed(1) + '%' : '—';
+    document.getElementById('statCostPt').textContent   = costPerPoint !== null
+        ? (costPerPoint < 0 ? '+$' + Math.abs(costPerPoint).toFixed(2) : '$' + costPerPoint.toFixed(2))
+        : '—';
 }
 
 // ─── Satellite Hand Helpers ───────────────────────────────────────────────────
@@ -516,6 +536,8 @@ function deal() {
     }
 
     state.credits  -= totalBet;
+    state.stats.handsPlayed++;
+    state.stats.totalWagered += totalBet;
     state.lastWin   = 0;
     state.lastHand  = null;
     state.held      = [false,false,false,false,false];
@@ -527,6 +549,9 @@ function deal() {
     const area = document.getElementById('cardsArea');
     area.classList.remove('winner');
     area.innerHTML = '';
+    const mainWinEl = document.getElementById('mainWin');
+    mainWinEl.textContent = '\u00a0';
+    mainWinEl.classList.remove('winner');
     for (let i = 0; i < 5; i++) area.appendChild(makeSlotEl(null, i, true));
 
     initSatelliteHands();
@@ -564,8 +589,9 @@ function deal() {
 
         // Override message and play fanfare when dealt a winner
         if (state.lastHand) {
-            document.getElementById('winMessage').textContent =
-                state.lastHand.toUpperCase();
+            const mw = document.getElementById('mainWin');
+            mw.textContent = state.lastHand.toUpperCase();
+            mw.classList.add('winner');
             playWinFanfare(state.lastHand);
         }
     }, 5 * DEAL_INTERVAL);
@@ -649,11 +675,21 @@ function draw() {
             });
         }
 
-        // Highlight main hand area if it won
+        // Highlight main hand area and show win label if it won
         document.getElementById('cardsArea').classList.toggle('winner', mainPay > 0);
+        const mainWinEl = document.getElementById('mainWin');
+        if (mainPay > 0) {
+            mainWinEl.textContent = (handName || '').toUpperCase();
+            mainWinEl.classList.add('winner');
+        } else {
+            mainWinEl.textContent = '\u00a0';
+            mainWinEl.classList.remove('winner');
+        }
 
+        state.stats.totalReturned += totalPay;
         renderPayTable();
         updateDisplay();
+        renderStats();
 
         if (totalPay > 0) {
             playWinFanfare(handName);
@@ -719,6 +755,8 @@ function init() {
     renderCards();
     renderPayTable();
     updateDisplay();
+    renderStats();
+    initSatelliteHands(); // show initial layout matching current mode
 
     // Card click — event delegation on cards-area
     document.getElementById('cardsArea').addEventListener('click', e => {
@@ -757,9 +795,7 @@ function init() {
             state.multiHand = hands === 10;
             document.querySelectorAll('.mode-btn').forEach(b =>
                 b.classList.toggle('active', b === btn));
-            // Reset satellite section visibility immediately
-            const section = document.getElementById('satelliteSection');
-            if (!state.multiHand) section.style.display = 'none';
+            initSatelliteHands(); // update satellite display immediately
         });
     });
 
@@ -777,6 +813,12 @@ function init() {
     document.getElementById('resetCreditsBtn').addEventListener('click', () => {
         const val = parseInt(document.getElementById('startingCredits').value);
         if (val > 0) { state.credits += val; updateDisplay(); }
+    });
+
+    // Dollars per point
+    document.getElementById('setDollarsPerPointBtn').addEventListener('click', () => {
+        const val = parseFloat(document.getElementById('dollarsPerPointInput').value);
+        if (val > 0) { state.dollarsPerPoint = val; renderStats(); }
     });
 
     // Reset pay table

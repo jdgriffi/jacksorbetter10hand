@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="game-outer">
+
 <div class="game-wrapper">
 
     <!-- Pay Table -->
@@ -28,6 +30,9 @@
 
     <!-- Satellite Hands (10-hand mode) -->
     <div class="satellite-section" id="satelliteSection"></div>
+
+    <!-- Main Hand Win Label -->
+    <div class="main-win" id="mainWin">&nbsp;</div>
 
     <!-- Cards -->
     <div class="cards-area" id="cardsArea"></div>
@@ -53,13 +58,43 @@
 
     <!-- Action Bar -->
     <div class="action-bar">
-        <button class="action-btn menu-btn" id="menuBtn">MENU</button>
+        <button class="action-btn menu-btn" id="menuBtn">SETTINGS</button>
         <button class="action-btn" id="betOneBtn">BET UP</button>
         <button class="action-btn" id="maxBetBtn">BET MAX</button>
         <button class="action-btn deal-btn" id="dealBtn">DEAL</button>
     </div>
 
+</div><!-- /.game-wrapper -->
+
+<!-- Stats Panel -->
+<div class="stats-panel" id="statsPanel">
+    <div class="stats-title">STATISTICS</div>
+    <div class="stat-row">
+        <span class="stat-label">HANDS</span>
+        <span class="stat-value" id="statHands">0</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-row">
+        <span class="stat-label">WAGERED</span>
+        <span class="stat-value" id="statWagered">$0.00</span>
+    </div>
+    <div class="stat-row">
+        <span class="stat-label">RETURNED</span>
+        <span class="stat-value" id="statReturned">$0.00</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-row">
+        <span class="stat-label">RTP</span>
+        <span class="stat-value" id="statRtp">—</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-row">
+        <span class="stat-label">COST/PT</span>
+        <span class="stat-value" id="statCostPt">—</span>
+    </div>
 </div>
+
+</div><!-- /.game-outer -->
 
 <!-- Settings Modal -->
 <div class="modal-overlay" id="settingsModal">
@@ -73,8 +108,8 @@
             <div class="settings-section">
                 <h3>Game Mode</h3>
                 <div class="mode-options">
-                    <button class="mode-btn active" data-hands="1">Single Hand</button>
-                    <button class="mode-btn" data-hands="10">10 Hands</button>
+                    <button class="mode-btn" data-hands="1">Single Hand</button>
+                    <button class="mode-btn active" data-hands="10">10 Hands</button>
                 </div>
                 <p class="hint" style="margin-top:6px">In 10-hand mode, your bet is multiplied by 10 per deal. Each hand pays out independently.</p>
             </div>
@@ -101,6 +136,15 @@
                     <label>Add credits: <input type="number" id="startingCredits" value="100" min="1" style="width:80px"></label>
                     <button class="small-btn" id="resetCreditsBtn">Add</button>
                 </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Scoring</h3>
+                <div class="custom-row">
+                    <label>$ per point: <input type="number" id="dollarsPerPointInput" value="10" min="0.01" step="0.01" style="width:80px"></label>
+                    <button class="small-btn" id="setDollarsPerPointBtn">Set</button>
+                </div>
+                <p class="hint" style="margin-top:6px">Dollar value of each point wagered. Used to calculate Cost/Point in statistics.</p>
             </div>
 
             <div class="settings-section">
