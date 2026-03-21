@@ -260,21 +260,19 @@ playWinFanfare.__preview = function(sound, big) {
 
 let countUpTimer = null;
 
-function animateCountUp(from, to, onDone) {
+function animateCountUp(from, to, onDone, step = 1) {
     if (countUpTimer) clearInterval(countUpTimer);
     if (to <= from) { onDone && onDone(); return; }
 
     const el = document.getElementById('creditsDisplay');
-    const winEl = document.getElementById('winDisplay');
     let current = from;
-    let remaining = to - from;
 
     // Tick every 80ms for small wins, faster for large wins
-    const interval = Math.max(20, Math.min(80, Math.round(4000 / remaining)));
+    const total = to - from;
+    const interval = Math.max(20, Math.min(80, Math.round(4000 / (total / step))));
 
     countUpTimer = setInterval(() => {
-        current++;
-        remaining--;
+        current = Math.min(current + step, to);
         el.textContent = current;
         document.getElementById('creditsDollar').textContent = '$' + (current * state.creditValue).toFixed(2);
 
@@ -285,7 +283,7 @@ function animateCountUp(from, to, onDone) {
 
         playTick();
 
-        if (remaining <= 0) {
+        if (current >= to) {
             clearInterval(countUpTimer);
             countUpTimer = null;
             onDone && onDone();
@@ -835,7 +833,7 @@ function draw() {
                 animateCountUp(creditsBeforeWin, state.credits, () => {
                     document.getElementById('creditsDisplay').classList.remove('counting');
                     enableButtons();
-                });
+                }, state.bet);
             }, 300);
         } else {
             enableButtons();
