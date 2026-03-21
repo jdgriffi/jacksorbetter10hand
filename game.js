@@ -53,8 +53,10 @@ const state = {
     satCards:    [],       // [9][5] — satellite hand cards after draw
     satWins:     [],       // [9]   — payout per satellite hand
     // Statistics
-    stats: { handsPlayed: 0, totalWagered: 0, totalReturned: 0 },
+    stats: { handsPlayed: 0, totalWagered: 0, totalReturned: 0, winCounts: {} },
     dollarsPerPoint: 10,
+    winSound: 'arcade',
+    bigWinSound: 'fanfare',
 };
 
 // ─── Audio (Web Audio API — no files needed) ──────────────────────────────────
@@ -139,30 +141,120 @@ function playDraw() {
     } catch (e) { /* audio not available */ }
 }
 
+// ── Win sound styles ──────────────────────────────────────────
+function playWinSound_classic(isRoyal) {
+    const ctx = getAudioCtx();
+    const notes = isRoyal ? [523,659,784,1047,1319] : [523,659,784,1047];
+    notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'square';
+        const t = ctx.currentTime + i * 0.12;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.start(t); osc.stop(t + 0.2);
+    });
+}
+
+function playWinSound_bells(isRoyal) {
+    const ctx = getAudioCtx();
+    const notes = isRoyal ? [784,1047,1319,1568,2093] : [784,1047,1319,1568];
+    notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        const t = ctx.currentTime + i * 0.18;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.18, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.start(t); osc.stop(t + 0.55);
+    });
+}
+
+function playWinSound_arcade(isRoyal) {
+    const ctx = getAudioCtx();
+    const steps = isRoyal ? 8 : 5;
+    for (let i = 0; i < steps; i++) {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        const t = ctx.currentTime + i * 0.07;
+        osc.frequency.setValueAtTime(300 + i * 120, t);
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.start(t); osc.stop(t + 0.09);
+    }
+}
+
+function playWinSound_brass(isRoyal) {
+    const ctx = getAudioCtx();
+    const notes = isRoyal ? [392,523,659,784,1047] : [392,523,659,784];
+    notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        const t = ctx.currentTime + i * 0.14;
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.04, t + 0.1);
+        gain.gain.setValueAtTime(0.09, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+        osc.start(t); osc.stop(t + 0.24);
+    });
+}
+
+function playBigWinner() {
+    const ctx = getAudioCtx();
+    // Rising arpeggio then a held triumphant chord
+    const arpNotes = [261, 329, 392, 523, 659, 784, 1047];
+    arpNotes.forEach((freq, i) => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'square';
+        const t = ctx.currentTime + i * 0.07;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.13, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+        osc.start(t); osc.stop(t + 0.14);
+    });
+    // Triumphant chord at the end
+    const chordBase = ctx.currentTime + arpNotes.length * 0.07 + 0.05;
+    [523, 659, 784, 1047].forEach((freq, i) => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, chordBase);
+        gain.gain.setValueAtTime(0.14, chordBase);
+        gain.gain.exponentialRampToValueAtTime(0.001, chordBase + 0.9);
+        osc.start(chordBase); osc.stop(chordBase + 1.0);
+    });
+}
+
+const BIG_WINNER_HANDS = new Set(['Four of a Kind', 'Straight Flush', 'Royal Flush']);
+
+function playSound(style, big) {
+    if (style === 'none')    return;
+    if (style === 'fanfare') { playBigWinner(); return; }
+    if (style === 'classic') { playWinSound_classic(big); return; }
+    if (style === 'bells')   { playWinSound_bells(big);   return; }
+    if (style === 'arcade')  { playWinSound_arcade(big);  return; }
+    if (style === 'brass')   { playWinSound_brass(big);   return; }
+}
+
 function playWinFanfare(handName) {
     try {
-        const ctx = getAudioCtx();
-        const isRoyal = handName === 'Royal Flush';
-        // Ascending notes for a win jingle
-        const notes = isRoyal
-            ? [523, 659, 784, 1047, 1319]
-            : [523, 659, 784, 1047];
-
-        notes.forEach((freq, i) => {
-            const osc  = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'square';
-            const t = ctx.currentTime + i * 0.12;
-            osc.frequency.setValueAtTime(freq, t);
-            gain.gain.setValueAtTime(0.12, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-            osc.start(t);
-            osc.stop(t + 0.2);
-        });
+        if (BIG_WINNER_HANDS.has(handName)) {
+            playSound(state.bigWinSound, true);
+        } else {
+            playSound(state.winSound, false);
+        }
     } catch (e) { /* audio not available */ }
 }
+
+// Preview a specific sound style (called from settings)
+playWinFanfare.__preview = function(sound, big) {
+    try { playSound(sound, !!big); } catch (e) {}
+};
 
 // ─── Credit Count-Up ──────────────────────────────────────────────────────────
 
@@ -362,6 +454,8 @@ function formatCreditBadge(val) {
 
 function updateDisplay() {
     document.getElementById('betDisplay').textContent     = state.bet;
+    document.getElementById('betMultiplier').textContent  = state.multiHand ? 'x10' : '';
+    document.getElementById('betPerHand').textContent     = state.bet === 1 ? 'credit per hand' : 'credits per hand';
     document.getElementById('winDisplay').textContent     = state.lastWin;
     document.getElementById('creditsDisplay').textContent = state.credits;
     document.getElementById('creditValBadge').textContent = formatCreditBadge(state.creditValue * state.bet);
@@ -415,9 +509,33 @@ function renderStats() {
     document.getElementById('statWagered').textContent  = '$' + wageredDollars.toFixed(2);
     document.getElementById('statReturned').textContent = '$' + returnedDollars.toFixed(2);
     document.getElementById('statRtp').textContent      = rtp !== null ? rtp.toFixed(1) + '%' : '—';
+    document.getElementById('statPoints').textContent   = points > 0 ? points.toFixed(1) : '—';
     document.getElementById('statCostPt').textContent   = costPerPoint !== null
         ? (costPerPoint < 0 ? '+$' + Math.abs(costPerPoint).toFixed(2) : '$' + costPerPoint.toFixed(2))
         : '—';
+
+    // Wins by type
+    const wc = state.stats.winCounts;
+    const tbody = document.getElementById('statWinCountsBody');
+    tbody.innerHTML = '';
+    const ABBR = {
+        'Royal Flush':    'Royal Flush',
+        'Straight Flush': 'Str. Flush',
+        'Four of a Kind': '4 of a Kind',
+        'Full House':     'Full House',
+        'Flush':          'Flush',
+        'Straight':       'Straight',
+        'Three of a Kind':'3 of a Kind',
+        'Two Pair':       'Two Pair',
+        'Jacks or Better':'Jacks or Better',
+    };
+    HAND_NAMES.forEach(name => {
+        const count = wc[name] || 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="wc-label">${ABBR[name]}</td><td class="wc-val">${count > 0 ? count : '—'}</td>`;
+        if (count > 0) tr.classList.add('wc-hit');
+        tbody.appendChild(tr);
+    });
 }
 
 // ─── Satellite Hand Helpers ───────────────────────────────────────────────────
@@ -536,7 +654,7 @@ function deal() {
     }
 
     state.credits  -= totalBet;
-    state.stats.handsPlayed++;
+    state.stats.handsPlayed += state.multiHand ? 10 : 1;
     state.stats.totalWagered += totalBet;
     state.lastWin   = 0;
     state.lastHand  = null;
@@ -598,6 +716,12 @@ function deal() {
 }
 
 function draw() {
+    // Clear the deal-time win overlay immediately when draw begins
+    const mainWinEl = document.getElementById('mainWin');
+    mainWinEl.textContent = '\u00a0';
+    mainWinEl.classList.remove('winner');
+    document.getElementById('cardsArea').classList.remove('winner');
+
     const toReplace = [];
     for (let i = 0; i < 5; i++) {
         if (!state.held[i]) toReplace.push(i);
@@ -619,6 +743,15 @@ function draw() {
     state.lastWin  = totalPay;
     state.phase    = 'result';
     state.held     = [false,false,false,false,false];
+
+    // Tally win counts (main hand + satellite hands)
+    const wc = state.stats.winCounts;
+    if (handName) wc[handName] = (wc[handName] || 0) + 1;
+    if (state.multiHand) {
+        state.satWins.forEach(({ name }) => {
+            if (name) wc[name] = (wc[name] || 0) + 1;
+        });
+    }
 
     // Remove HELD styling from kept cards
     document.querySelectorAll('#cardsArea .card-slot.held').forEach(el => {
@@ -679,7 +812,7 @@ function draw() {
         document.getElementById('cardsArea').classList.toggle('winner', mainPay > 0);
         const mainWinEl = document.getElementById('mainWin');
         if (mainPay > 0) {
-            mainWinEl.textContent = (handName || '').toUpperCase();
+            mainWinEl.textContent = (handName || '').toUpperCase() + ' +' + mainPay;
             mainWinEl.classList.add('winner');
         } else {
             mainWinEl.textContent = '\u00a0';
@@ -692,7 +825,9 @@ function draw() {
         renderStats();
 
         if (totalPay > 0) {
-            playWinFanfare(handName);
+            const wagered = state.bet * (state.multiHand ? 10 : 1);
+            const isBigWin = BIG_WINNER_HANDS.has(handName) || totalPay > wagered * 4;
+            isBigWin ? playSound(state.bigWinSound, true) : playSound(state.winSound, false);
             const creditsBeforeWin = state.credits;
             state.credits += totalPay;
 
@@ -734,6 +869,8 @@ function betMax() {
 
 function openSettings() {
     renderPayTableSettings();
+    document.getElementById('winSoundSelect').value = state.winSound;
+    document.getElementById('bigWinSoundSelect').value = state.bigWinSound;
     document.getElementById('settingsModal').classList.add('active');
 }
 
@@ -815,6 +952,22 @@ function init() {
         if (val > 0) { state.credits += val; updateDisplay(); }
     });
 
+    // Win sound dropdown
+    document.getElementById('winSoundSelect').addEventListener('change', e => {
+        state.winSound = e.target.value;
+    });
+    document.getElementById('winSoundPreview').addEventListener('click', () => {
+        try { playWinFanfare.__preview(state.winSound, false); } catch(e) {}
+    });
+
+    // Big winner sound dropdown
+    document.getElementById('bigWinSoundSelect').addEventListener('change', e => {
+        state.bigWinSound = e.target.value;
+    });
+    document.getElementById('bigWinSoundPreview').addEventListener('click', () => {
+        try { playWinFanfare.__preview(state.bigWinSound, true); } catch(e) {}
+    });
+
     // Dollars per point
     document.getElementById('setDollarsPerPointBtn').addEventListener('click', () => {
         const val = parseFloat(document.getElementById('dollarsPerPointInput').value);
@@ -824,6 +977,13 @@ function init() {
     // Reset pay table
     document.getElementById('resetPayTableBtn').addEventListener('click', () => {
         state.payTable = { ...DEFAULT_PAY_TABLE };
+        renderPayTableSettings();
+        renderPayTable();
+    });
+
+    // 7/5 pay table preset
+    document.getElementById('set75PayTableBtn').addEventListener('click', () => {
+        state.payTable = { ...DEFAULT_PAY_TABLE, 'Full House': 7, 'Flush': 5 };
         renderPayTableSettings();
         renderPayTable();
     });

@@ -28,6 +28,14 @@ body {
     flex-shrink: 0;
 }
 
+/* ─── Stats Column ─────────────────────────────────────────── */
+.stats-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
 /* ─── Stats Panel ──────────────────────────────────────────── */
 .stats-panel {
     width: 160px;
@@ -75,6 +83,40 @@ body {
 .stat-divider {
     border-top: 1px dotted rgba(255,215,0,0.2);
     margin: 6px 0;
+}
+
+/* ─── Win Counts Panel ─────────────────────────────────────── */
+.win-counts-panel {
+    margin-top: 10px;
+}
+
+.wc-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.wc-table .wc-label {
+    color: #888;
+    font-size: 0.63rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    padding: 2px 0;
+}
+
+.wc-table .wc-val {
+    color: #555;
+    font-size: 0.72rem;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    text-align: right;
+}
+
+.wc-table tr.wc-hit .wc-label {
+    color: #ccc;
+}
+
+.wc-table tr.wc-hit .wc-val {
+    color: #ffd700;
 }
 
 /* ─── Pay Table ────────────────────────────────────────────── */
@@ -275,28 +317,41 @@ body {
     100% { box-shadow: 0 0 10px rgba(255,215,0,0.55), inset 0 0 8px rgba(255,215,0,0.08); background: rgba(255,180,0,0.12); }
 }
 
-/* ─── Main Hand Win Label ──────────────────────────────────── */
+/* ─── Cards Wrap + Main Hand Win Overlay ──────────────────── */
+.cards-wrap {
+    position: relative;
+}
+
 .main-win {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
     text-align: center;
-    background: #111;
+    background: rgba(0,0,0,0.72);
     color: #ffd700;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     font-weight: bold;
     font-family: Georgia, serif;
     letter-spacing: 3px;
-    padding: 4px 0 2px;
-    min-height: 1.6em;
-    line-height: 1.6em;
+    padding: 10px 22px;
+    border: 2px solid #ffd700;
+    border-radius: 6px;
+    pointer-events: none;
+    white-space: nowrap;
 }
 
 .main-win.winner {
+    display: block;
     animation: mainLabelPulse 0.5s ease-out both;
 }
 
 @keyframes mainLabelPulse {
-    0%   { color: #fff; }
-    60%  { color: #ffe066; }
-    100% { color: #ffd700; }
+    0%   { color: #fff; border-color: #fff; }
+    60%  { color: #ffe066; border-color: #ffe066; }
+    100% { color: #ffd700; border-color: #ffd700; }
 }
 
 /* ─── Cards Area ───────────────────────────────────────────── */
@@ -412,7 +467,7 @@ body {
 .card-corner.bot-right { bottom: 5px; right: 7px; transform: rotate(180deg); }
 
 .card-corner .rank { font-size: 1.15rem; font-weight: bold; }
-.card-corner .suit { font-size: 0.85rem; }
+.card-corner .suit { font-size: 1.28rem; }
 
 /* Center suit symbol */
 .card-center {
@@ -459,8 +514,25 @@ body {
 .win-side .info-value  { color: #ff4400; }
 .credits-side .info-value { color: #ffd700; }
 
+.credits-side {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.credits-top-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.credits-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .info-dollar {
-    display: block;
     color: #aaa;
     font-size: 0.75rem;
     text-align: right;
@@ -473,11 +545,46 @@ body {
 }
 
 .bet-center .info-label { letter-spacing: 3px; }
-.bet-center .info-value { font-size: 1.8rem; text-align: center; }
 
 .bet-star {
     color: #ffd700;
     font-size: 1.1rem;
+}
+
+.bet-value-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    line-height: 1;
+}
+
+.bet-value-group .info-value {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.bet-sub-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.bet-per-hand {
+    color: #888;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bet-multiplier {
+    color: #ff9900;
+    font-size: 0.8rem;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
 }
 
 .credit-val-badge {
@@ -692,6 +799,24 @@ body {
     width: 100%;
 }
 
+.sound-select-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sound-select-row select {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1.5px solid #aa7700;
+    color: #ffd700;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+.sound-select-row select:focus { outline: none; border-color: #ffd700; }
+
 .reset-btn {
     margin-top: 10px;
     padding: 6px 14px;
@@ -742,7 +867,8 @@ body {
 /* ─── Responsive ───────────────────────────────────────────── */
 @media (max-width: 860px) {
     .game-outer { flex-direction: column; align-items: center; }
-    .stats-panel { width: 660px; max-width: 100%; }
+    .stats-col { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+    .stats-panel { width: 320px; max-width: 100%; }
 }
 
 @media (max-width: 680px) {

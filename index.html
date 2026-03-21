@@ -31,11 +31,11 @@
     <!-- Satellite Hands (10-hand mode) -->
     <div class="satellite-section" id="satelliteSection"></div>
 
-    <!-- Main Hand Win Label -->
-    <div class="main-win" id="mainWin">&nbsp;</div>
-
-    <!-- Cards -->
-    <div class="cards-area" id="cardsArea"></div>
+    <!-- Cards + overlay -->
+    <div class="cards-wrap">
+        <div class="cards-area" id="cardsArea"></div>
+        <div class="main-win" id="mainWin"></div>
+    </div>
 
     <!-- Info Bar -->
     <div class="info-bar">
@@ -44,15 +44,24 @@
             <span class="info-value" id="winDisplay">0</span>
         </div>
         <div class="info-item bet-center">
-            <span class="bet-star">&#9733;</span>
             <span class="info-label">BET</span>
-            <span class="info-value" id="betDisplay">1</span>
-            <span class="credit-val-badge" id="creditValBadge">25&#162;</span>
+            <span class="bet-value-group">
+                <span class="info-value" id="betDisplay">1</span>
+                <span class="bet-sub-row">
+                    <span class="bet-per-hand" id="betPerHand">credit per hand</span>
+                    <span class="bet-multiplier" id="betMultiplier"></span>
+                </span>
+            </span>
         </div>
         <div class="info-item credits-side">
-            <span class="info-label">CREDITS</span>
-            <span class="info-value" id="creditsDisplay">100</span>
-            <span class="info-dollar" id="creditsDollar">$25.00</span>
+            <div class="credits-top-row">
+                <span class="info-label">CREDITS</span>
+                <span class="info-value" id="creditsDisplay">100</span>
+            </div>
+            <div class="credits-bottom-row">
+                <span class="info-dollar" id="creditsDollar">$25.00</span>
+                <span class="credit-val-badge" id="creditValBadge">25&#162;</span>
+            </div>
         </div>
     </div>
 
@@ -66,7 +75,8 @@
 
 </div><!-- /.game-wrapper -->
 
-<!-- Stats Panel -->
+<!-- Stats Column -->
+<div class="stats-col">
 <div class="stats-panel" id="statsPanel">
     <div class="stats-title">STATISTICS</div>
     <div class="stat-row">
@@ -89,10 +99,24 @@
     </div>
     <div class="stat-divider"></div>
     <div class="stat-row">
+        <span class="stat-label">POINTS</span>
+        <span class="stat-value" id="statPoints">—</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-row">
         <span class="stat-label">COST/PT</span>
         <span class="stat-value" id="statCostPt">—</span>
     </div>
 </div>
+
+<!-- Win Counts Panel -->
+<div class="stats-panel win-counts-panel" id="winCountsPanel">
+    <div class="stats-title">WINS BY TYPE</div>
+    <table class="wc-table">
+        <tbody id="statWinCountsBody"></tbody>
+    </table>
+</div>
+</div><!-- /.stats-col -->
 
 </div><!-- /.game-outer -->
 
@@ -139,6 +163,35 @@
             </div>
 
             <div class="settings-section">
+                <h3>Win Sound</h3>
+                <div class="sound-select-row">
+                    <select id="winSoundSelect">
+                        <option value="classic">Classic</option>
+                        <option value="bells">Bells</option>
+                        <option value="arcade">Arcade</option>
+                        <option value="brass">Brass</option>
+                        <option value="none">None</option>
+                    </select>
+                    <button class="small-btn" id="winSoundPreview">&#9654; Preview</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Big Winner Sound</h3>
+                <div class="sound-select-row">
+                    <select id="bigWinSoundSelect">
+                        <option value="fanfare">Fanfare</option>
+                        <option value="classic">Classic</option>
+                        <option value="bells">Bells</option>
+                        <option value="arcade">Arcade</option>
+                        <option value="brass">Brass</option>
+                        <option value="none">None</option>
+                    </select>
+                    <button class="small-btn" id="bigWinSoundPreview">&#9654; Preview</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <h3>Scoring</h3>
                 <div class="custom-row">
                     <label>$ per point: <input type="number" id="dollarsPerPointInput" value="10" min="0.01" step="0.01" style="width:80px"></label>
@@ -151,7 +204,10 @@
                 <h3>Pay Table <span class="hint">(multiplier per credit bet)</span></h3>
                 <div class="pay-table-settings" id="payTableSettings"></div>
                 <p class="hint" style="margin-top:6px">* Royal Flush always pays 4000 credits on a 5-credit bet.</p>
-                <button class="reset-btn" id="resetPayTableBtn">Reset to Default (9/6)</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="reset-btn" id="resetPayTableBtn">9/6 Jacks or Better</button>
+                    <button class="reset-btn" id="set75PayTableBtn">7/5 Jacks or Better</button>
+                </div>
             </div>
 
         </div>
