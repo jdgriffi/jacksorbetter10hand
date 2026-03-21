@@ -408,9 +408,12 @@ function renderCards() {
 
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
+    const winningHands = new Set();
+    if (state.lastHand) winningHands.add(state.lastHand);
+    if (state.multiHand) state.satWins.forEach(({ name }) => { if (name) winningHands.add(name); });
     tbody.innerHTML = HAND_NAMES.map(name => {
         const base = state.payTable[name];
-        const isWinner = name === state.lastHand;
+        const isWinner = winningHands.has(name);
 
         const cells = [1,2,3,4,5].map(b => {
             const pay = (name === 'Royal Flush' && b === 5) ? 4000 : base * b;
@@ -824,7 +827,8 @@ function draw() {
 
         if (totalPay > 0) {
             const wagered = state.bet * (state.multiHand ? 10 : 1);
-            const isBigWin = BIG_WINNER_HANDS.has(handName) || totalPay > wagered * 4;
+            const satHasBigWin = state.multiHand && state.satWins.some(({ name }) => BIG_WINNER_HANDS.has(name));
+            const isBigWin = BIG_WINNER_HANDS.has(handName) || satHasBigWin || totalPay > wagered * 4;
             isBigWin ? playSound(state.bigWinSound, true) : playSound(state.winSound, false);
             const creditsBeforeWin = state.credits;
             state.credits += totalPay;
