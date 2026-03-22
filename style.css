@@ -715,6 +715,17 @@ body {
 /* ─── Auto-Play Setup Modal ───────────────────────────────── */
 .ap-setup-modal { max-width: 380px; }
 
+.ap-setup-warning {
+    margin: 4px 0 12px;
+    padding: 8px 12px;
+    background: rgba(255, 160, 0, 0.12);
+    border: 1px solid rgba(255, 160, 0, 0.4);
+    border-radius: 4px;
+    color: #ffa040;
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+
 .setup-question {
     margin-bottom: 16px;
 }
