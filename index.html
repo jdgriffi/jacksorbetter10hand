@@ -13,7 +13,14 @@
 
     <!-- Pay Table -->
     <div class="pay-table-wrap">
-        <div class="pay-table-title">JACKS OR BETTER</div>
+        <div class="pay-table-header">
+            <div class="pay-table-title">JACKS OR BETTER</div>
+            <div class="pt-presets">
+                <button class="pt-preset-btn" id="preset96Btn">9/6</button>
+                <button class="pt-preset-btn" id="preset85Btn">8/5</button>
+                <button class="pt-preset-btn" id="preset75Btn">7/5</button>
+            </div>
+        </div>
         <table class="pay-table" id="payTable">
             <thead>
                 <tr>
@@ -92,6 +99,10 @@
         <span class="stat-label">RETURNED</span>
         <span class="stat-value" id="statReturned">$0.00</span>
     </div>
+    <div class="stat-row">
+        <span class="stat-label">NET</span>
+        <span class="stat-value" id="statNet">$0.00</span>
+    </div>
     <div class="stat-divider"></div>
     <div class="stat-row">
         <span class="stat-label">RTP</span>
@@ -109,6 +120,9 @@
     </div>
 </div>
 
+<!-- Reset Stats Button -->
+<button class="reset-btn stats-reset-btn" id="resetStatsBtn">Reset Statistics</button>
+
 <!-- Win Counts Panel -->
 <div class="stats-panel win-counts-panel" id="winCountsPanel">
     <div class="stats-title">WINS BY TYPE</div>
@@ -116,9 +130,113 @@
         <tbody id="statWinCountsBody"></tbody>
     </table>
 </div>
+
+<!-- Auto Play Button -->
+<button class="auto-btn stats-auto-btn" id="autoPlayBtn">AUTO PLAY</button>
+
 </div><!-- /.stats-col -->
 
 </div><!-- /.game-outer -->
+
+<!-- Auto-Play Setup Modal -->
+<div class="modal-overlay" id="apSetupModal">
+    <div class="modal ap-setup-modal">
+        <div class="modal-header">
+            <h2>AUTO PLAY SETUP</h2>
+        </div>
+        <div class="modal-body">
+
+            <div class="setup-question">
+                <div class="setup-q-label">Reset statistics and credits before starting?</div>
+                <div class="setup-options" id="setupReset">
+                    <button class="setup-opt-btn" data-val="yes">Yes</button>
+                    <button class="setup-opt-btn active" data-val="no">No</button>
+                </div>
+            </div>
+
+            <div class="setup-question">
+                <div class="setup-q-label">Payout table</div>
+                <div class="setup-options" id="setupPayTable">
+                    <button class="setup-opt-btn" data-val="96">9/6</button>
+                    <button class="setup-opt-btn" data-val="85">8/5</button>
+                    <button class="setup-opt-btn" data-val="75">7/5</button>
+                    <button class="setup-opt-btn active" data-val="current">Current</button>
+                </div>
+            </div>
+
+            <div class="setup-question">
+                <div class="setup-q-label">Credits per hand</div>
+                <div class="setup-options" id="setupBet">
+                    <button class="setup-opt-btn" data-val="1">1</button>
+                    <button class="setup-opt-btn" data-val="2">2</button>
+                    <button class="setup-opt-btn" data-val="3">3</button>
+                    <button class="setup-opt-btn" data-val="4">4</button>
+                    <button class="setup-opt-btn" data-val="5">5</button>
+                </div>
+            </div>
+
+            <div class="setup-question">
+                <div class="setup-q-label">Initial speed</div>
+                <div class="setup-options" id="setupSpeed">
+                    <button class="setup-opt-btn" data-val="0">1/sec</button>
+                    <button class="setup-opt-btn" data-val="1">10/sec</button>
+                    <button class="setup-opt-btn" data-val="2">100/sec</button>
+                    <button class="setup-opt-btn" data-val="3">Max</button>
+                </div>
+            </div>
+
+        </div>
+        <div class="modal-footer" style="justify-content:space-between;">
+            <button class="reset-btn" id="apSetupCancelBtn">Cancel</button>
+            <button class="save-btn" id="apSetupStartBtn">&#9654; Start Auto Play</button>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-Play Modal -->
+<div class="modal-overlay" id="autoPlayModal">
+    <div class="modal ap-modal">
+        <div class="modal-header">
+            <h2>AUTO PLAY</h2>
+            <button class="modal-close" id="closeAutoPlay">&#10005;</button>
+        </div>
+        <div class="modal-body">
+
+            <div class="ap-speed-row">
+                <span class="ap-label">Speed</span>
+                <select id="apSpeedSelect">
+                    <option value="0">1 / sec</option>
+                    <option value="1">10 / sec</option>
+                    <option value="2" selected>100 / sec</option>
+                    <option value="3">Max</option>
+                </select>
+            </div>
+
+            <div class="ap-hand-display">
+                <div class="ap-cards" id="apLastHand">—</div>
+                <div class="ap-holds" id="apLastHolds"></div>
+                <div class="ap-result-row">
+                    <span class="ap-result-name" id="apLastResult">—</span>
+                    <span class="ap-result-pay" id="apLastPay"></span>
+                </div>
+            </div>
+
+            <div class="ap-divider"></div>
+
+            <div class="ap-stats">
+                <div class="ap-stat-row"><span class="ap-stat-label">HANDS</span><span class="ap-stat-value" id="apHands">0</span></div>
+                <div class="ap-stat-row"><span class="ap-stat-label">BALANCE</span><span class="ap-stat-value" id="apBalance">—</span></div>
+                <div class="ap-stat-row"><span class="ap-stat-label">WAGERED</span><span class="ap-stat-value" id="apWagered">$0.00</span></div>
+                <div class="ap-stat-row"><span class="ap-stat-label">RETURNED</span><span class="ap-stat-value" id="apReturned">$0.00</span></div>
+                <div class="ap-stat-row"><span class="ap-stat-label">RTP</span><span class="ap-stat-value" id="apRtp">—</span></div>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="save-btn" id="stopAutoPlayBtn">&#9632; Stop Auto Play</button>
+        </div>
+    </div>
+</div>
 
 <!-- Settings Modal -->
 <div class="modal-overlay" id="settingsModal">
@@ -204,10 +322,6 @@
                 <h3>Pay Table <span class="hint">(multiplier per credit bet)</span></h3>
                 <div class="pay-table-settings" id="payTableSettings"></div>
                 <p class="hint" style="margin-top:6px">* Royal Flush always pays 4000 credits on a 5-credit bet.</p>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="reset-btn" id="resetPayTableBtn">9/6 Jacks or Better</button>
-                    <button class="reset-btn" id="set75PayTableBtn">7/5 Jacks or Better</button>
-                </div>
             </div>
 
         </div>

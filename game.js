@@ -446,7 +446,7 @@ function renderPayTableSettings() {
     container.querySelectorAll('input').forEach(inp => {
         inp.addEventListener('change', () => {
             const val = parseInt(inp.value);
-            if (val > 0) { state.payTable[inp.dataset.hand] = val; renderPayTable(); }
+            if (val > 0) { state.payTable[inp.dataset.hand] = val; renderPayTable(); updatePresetHighlight(); }
         });
     });
 }
@@ -457,14 +457,26 @@ function formatCreditBadge(val) {
     return '$' + val.toFixed(2);
 }
 
+function formatDollars(amount) {
+    const abs = Math.abs(amount);
+    const sign = amount < 0 ? '-' : '';
+    if (abs >= 1_000_000) {
+        return sign + '$' + (abs / 1_000_000).toLocaleString('en-US', {minimumFractionDigits:3, maximumFractionDigits:3}) + 'M';
+    }
+    if (abs >= 100_000) {
+        return sign + '$' + Math.round(abs).toLocaleString('en-US');
+    }
+    return sign + '$' + abs.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
 function updateDisplay() {
     document.getElementById('betDisplay').textContent     = state.bet;
     document.getElementById('betMultiplier').textContent  = state.multiHand ? 'x10' : '';
     document.getElementById('betPerHand').textContent     = state.bet === 1 ? 'credit per hand' : 'credits per hand';
     document.getElementById('winDisplay').textContent     = state.lastWin;
-    document.getElementById('creditsDisplay').textContent = state.credits;
+    document.getElementById('creditsDisplay').textContent = state.credits.toLocaleString('en-US');
     document.getElementById('creditValBadge').textContent = formatCreditBadge(state.creditValue * state.bet);
-    document.getElementById('creditsDollar').textContent  = '$' + (state.credits * state.creditValue).toFixed(2);
+    document.getElementById('creditsDollar').textContent  = formatDollars(state.credits * state.creditValue);
 
     // Deal / Draw button
     const dealBtn = document.getElementById('dealBtn');
@@ -510,11 +522,15 @@ function renderStats() {
     const netSpend = wageredDollars - returnedDollars;
     const costPerPoint = points > 0 ? netSpend / points : null;
 
-    document.getElementById('statHands').textContent    = handsPlayed;
-    document.getElementById('statWagered').textContent  = '$' + wageredDollars.toFixed(2);
-    document.getElementById('statReturned').textContent = '$' + returnedDollars.toFixed(2);
+    const netDollars = returnedDollars - wageredDollars;
+
+    document.getElementById('statHands').textContent    = handsPlayed.toLocaleString();
+    document.getElementById('statWagered').textContent  = formatDollars(wageredDollars);
+    document.getElementById('statReturned').textContent = formatDollars(returnedDollars);
+    document.getElementById('statNet').textContent      = (netDollars >= 0 ? '+' : '') + formatDollars(netDollars);
+    document.getElementById('statNet').style.color      = netDollars >= 0 ? '#4caf50' : '#ff4444';
     document.getElementById('statRtp').textContent      = rtp !== null ? rtp.toFixed(1) + '%' : '—';
-    document.getElementById('statPoints').textContent   = points > 0 ? points.toFixed(1) : '—';
+    document.getElementById('statPoints').textContent   = points > 0 ? points.toLocaleString('en-US', {minimumFractionDigits:1, maximumFractionDigits:1}) : '—';
     document.getElementById('statCostPt').textContent   = costPerPoint !== null
         ? (costPerPoint < 0 ? '+$' + Math.abs(costPerPoint).toFixed(2) : '$' + costPerPoint.toFixed(2))
         : '—';
@@ -537,7 +553,7 @@ function renderStats() {
     HAND_NAMES.forEach(name => {
         const count = wc[name] || 0;
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="wc-label">${ABBR[name]}</td><td class="wc-val">${count > 0 ? count : '—'}</td>`;
+        tr.innerHTML = `<td class="wc-label">${ABBR[name]}</td><td class="wc-val">${count > 0 ? count.toLocaleString() : '—'}</td>`;
         if (count > 0) tr.classList.add('wc-hit');
         tbody.appendChild(tr);
     });
@@ -860,6 +876,321 @@ function enableButtons() {
     document.getElementById('maxBetBtn').disabled = false;
 }
 
+// ─── Auto-Play ────────────────────────────────────────────────────────────────
+
+const AP_SPEEDS = [
+    { label: '1/sec',   ms: 1000, batch: 1   },
+    { label: '10/sec',  ms: 100,  batch: 1   },
+    { label: '100/sec', ms: 10,   batch: 1   },
+    { label: 'Max',     ms: 4,    batch: 100 },
+];
+
+let apTimer = null;
+
+function getAutoPlayHolds(hand) {
+    const vals = hand.map(c => RANK_VALUE[c.rank]);
+    const rc = {};
+    for (const c of hand) rc[c.rank] = (rc[c.rank] || 0) + 1;
+    const HIGH  = new Set(['J','Q','K','A']);
+    const ROYAL = new Set(['10','J','Q','K','A']);
+    const hold  = (...idxs) => {
+        const h = [false,false,false,false,false];
+        for (const i of idxs) h[i] = true;
+        return h;
+    };
+    const bySuit = {};
+    hand.forEach((c,i) => (bySuit[c.suit] = bySuit[c.suit] || []).push(i));
+    const hn = evaluateHand(hand);
+
+    // 1. Four of a Kind / Straight Flush / Royal Flush
+    if (['Four of a Kind','Straight Flush','Royal Flush'].includes(hn))
+        return [true,true,true,true,true];
+
+    // 2. 4 to a Royal Flush
+    for (const idxs of Object.values(bySuit)) {
+        const r = idxs.filter(i => ROYAL.has(hand[i].rank));
+        if (r.length >= 4) return hold(...r.slice(0,4));
+    }
+
+    // 3. Three of a Kind / Straight / Flush / Full House
+    if (['Full House','Flush','Straight'].includes(hn))
+        return [true,true,true,true,true];
+    if (hn === 'Three of a Kind') {
+        const r = Object.keys(rc).find(r => rc[r] === 3);
+        return hold(...hand.map((c,i) => c.rank === r ? i : -1).filter(i => i >= 0));
+    }
+
+    // 4. 4 to a Straight Flush (same suit, span ≤ 4, no duplicate values)
+    for (const idxs of Object.values(bySuit)) {
+        if (idxs.length < 4) continue;
+        for (let a=0;a<idxs.length-3;a++)
+        for (let b=a+1;b<idxs.length-2;b++)
+        for (let c=b+1;c<idxs.length-1;c++)
+        for (let d=c+1;d<idxs.length;d++) {
+            const cb=[idxs[a],idxs[b],idxs[c],idxs[d]];
+            const v=cb.map(i=>vals[i]).sort((a,b)=>a-b);
+            if (v[3]-v[0]<=4 && new Set(v).size===4) return hold(...cb);
+        }
+    }
+
+    // 5. Two Pair
+    if (hn === 'Two Pair') {
+        const pr = Object.keys(rc).filter(r => rc[r] === 2);
+        return hold(...hand.map((c,i) => pr.includes(c.rank) ? i : -1).filter(i => i >= 0));
+    }
+
+    // 6. High Pair (J/Q/K/A)
+    const hp = Object.keys(rc).find(r => rc[r] === 2 && HIGH.has(r));
+    if (hp) return hold(...hand.map((c,i) => c.rank === hp ? i : -1).filter(i => i >= 0));
+
+    // 7. 3 to a Royal Flush
+    for (const idxs of Object.values(bySuit)) {
+        const r = idxs.filter(i => ROYAL.has(hand[i].rank));
+        if (r.length >= 3) return hold(...r.slice(0,3));
+    }
+
+    // 8. 4 to a Flush
+    for (const idxs of Object.values(bySuit)) {
+        if (idxs.length === 4) return hold(...idxs);
+    }
+
+    // 9. Low Pair (2-10)
+    const lp = Object.keys(rc).find(r => rc[r] === 2 && !HIGH.has(r));
+    if (lp) return hold(...hand.map((c,i) => c.rank === lp ? i : -1).filter(i => i >= 0));
+
+    // 10. 4 to an Outside Straight (4 consecutive, max val < 14 = not A-high)
+    for (let a=0;a<2;a++) for (let b=a+1;b<3;b++) for (let c=b+1;c<4;c++) for (let d=c+1;d<5;d++) {
+        const cb=[a,b,c,d], v=cb.map(i=>vals[i]).sort((a,b)=>a-b);
+        if (v[3]-v[0]===3 && new Set(v).size===4 && v[3]<14) return hold(...cb);
+    }
+
+    // 11. 2 Suited High Cards
+    for (const idxs of Object.values(bySuit)) {
+        const h = idxs.filter(i => HIGH.has(hand[i].rank));
+        if (h.length >= 2) return hold(...h.slice(0,2));
+    }
+
+    // Pre-compute high-card indices for steps 12-15
+    const hiIdxs = hand.map((c,i) => HIGH.has(c.rank) ? i : -1).filter(i => i >= 0);
+
+    // 12. 3 to a Straight Flush (Type 1: 0 gaps always; 1 gap only when combo has a high card)
+    // Double-inside draws (span=4, 2 gaps) are never held — EV too low.
+    // 1-gap draws without a high card in the combo are deferred to step 15b.
+    for (const idxs of Object.values(bySuit)) {
+        if (idxs.length < 3) continue;
+        for (let a=0;a<idxs.length-2;a++)
+        for (let b=a+1;b<idxs.length-1;b++)
+        for (let c=b+1;c<idxs.length;c++) {
+            const cb=[idxs[a],idxs[b],idxs[c]];
+            const v=cb.map(i=>vals[i]).sort((a,b)=>a-b);
+            const span = v[2]-v[0];
+            if (span > 3) continue;  // skip double-inside (span=4)
+            const hasHighInCombo = cb.some(i => HIGH.has(hand[i].rank));
+            // 1-gap + no high card in combo: skip here; prefer high cards (steps 13/15)
+            if (span === 3 && !hasHighInCombo) continue;
+            return hold(...cb);
+        }
+    }
+
+    // 13. Unsuited High Cards (hold up to 3; prefer J/Q/K over Ace when 3+ available)
+    if (hiIdxs.length >= 2) {
+        if (hiIdxs.length <= 3) return hold(...hiIdxs);
+        // 4 high cards: drop the Ace (hold 3 lowest = J/Q/K)
+        const s = [...hiIdxs].sort((a,b) => vals[a]-vals[b]);
+        return hold(...s.slice(0,3));
+    }
+
+    // 14. Suited 10/J, 10/Q, or 10/K
+    for (const idxs of Object.values(bySuit)) {
+        const ten  = idxs.find(i => hand[i].rank === '10');
+        if (ten !== undefined) {
+            const face = idxs.find(i => ['J','Q','K'].includes(hand[i].rank));
+            if (face !== undefined) return hold(ten, face);
+        }
+    }
+
+    // 15. One High Card (hold the highest)
+    if (hiIdxs.length > 0)
+        return hold(hiIdxs.reduce((a,b) => vals[a] > vals[b] ? a : b));
+
+    // 15b. Weak 3 to a Straight Flush (1 gap, no high card — last resort before discarding)
+    for (const idxs of Object.values(bySuit)) {
+        if (idxs.length < 3) continue;
+        for (let a=0;a<idxs.length-2;a++)
+        for (let b=a+1;b<idxs.length-1;b++)
+        for (let c=b+1;c<idxs.length;c++) {
+            const cb=[idxs[a],idxs[b],idxs[c]];
+            const v=cb.map(i=>vals[i]).sort((a,b)=>a-b);
+            if (v[2]-v[0] === 3) return hold(...cb);
+        }
+    }
+
+    // 16. Discard everything
+    return [false,false,false,false,false];
+}
+
+function runAutoPlayHand() {
+    const bet      = state.bet;
+    const isMulti  = state.multiHand;
+    const totalBet = bet * (isMulti ? 10 : 1);
+
+    state.credits -= totalBet;
+    state.stats.handsPlayed  += isMulti ? 10 : 1;
+    state.stats.totalWagered += totalBet;
+
+    const deck  = createDeck();
+    const hand  = deck.splice(0, 5);
+    const holds = getAutoPlayHolds(hand);
+
+    for (let i = 0; i < 5; i++) {
+        if (!holds[i]) hand[i] = deck.splice(0, 1)[0];
+    }
+
+    const handName = evaluateHand(hand);
+    const mainPay  = calculatePayout(handName, bet);
+    let   totalPay = mainPay;
+
+    if (handName) state.stats.winCounts[handName] = (state.stats.winCounts[handName] || 0) + 1;
+
+    if (isMulti) {
+        const heldCards = hand.filter((_,i) => holds[i]);
+        for (let h = 0; h < 9; h++) {
+            const sd = createDeck().filter(card =>
+                !heldCards.some(hc => hc.suit === card.suit && hc.rank === card.rank));
+            const sh = hand.map((card,i) => holds[i] ? card : sd.splice(0,1)[0]);
+            const sn = evaluateHand(sh);
+            const sp = calculatePayout(sn, bet);
+            totalPay += sp;
+            if (sn) state.stats.winCounts[sn] = (state.stats.winCounts[sn] || 0) + 1;
+        }
+    }
+
+    state.credits            += totalPay;
+    state.stats.totalReturned += totalPay;
+    state.lastWin  = totalPay;
+    state.lastHand = handName;
+
+    return { hand, holds, handName, totalPay };
+}
+
+function apUpdateDisplay(result) {
+    const { handsPlayed, totalWagered, totalReturned } = state.stats;
+    const cv  = state.creditValue;
+    const rtp = totalWagered > 0 ? (totalReturned / totalWagered * 100).toFixed(1) + '%' : '—';
+    const bal = state.credits * cv;
+
+    document.getElementById('apHands').textContent    = handsPlayed.toLocaleString();
+    document.getElementById('apWagered').textContent  = formatDollars(totalWagered * cv);
+    document.getElementById('apReturned').textContent = formatDollars(totalReturned * cv);
+    document.getElementById('apRtp').textContent      = rtp;
+
+    const balEl = document.getElementById('apBalance');
+    balEl.textContent = formatDollars(bal);
+    balEl.style.color = bal >= 0 ? '#ffd700' : '#ff4444';
+
+    if (result) {
+        const redSuits = new Set(['♥','♦']);
+        document.getElementById('apLastHand').innerHTML =
+            result.hand.map(c => {
+                const color = redSuits.has(c.suit) ? '#ff6666' : '#fff';
+                return `<span style="color:${color}">${c.rank}${c.suit}</span>`;
+            }).join('  ');
+        document.getElementById('apLastHolds').textContent =
+            result.holds.map((h,i) => h ? (i+1) : '·').join('   ');
+        document.getElementById('apLastResult').textContent = result.handName || 'No win';
+        document.getElementById('apLastPay').textContent    =
+            result.totalPay > 0 ? '+' + result.totalPay : '';
+    }
+}
+
+function apSchedule() {
+    if (apTimer) { clearInterval(apTimer); apTimer = null; }
+    const sp = AP_SPEEDS[parseInt(document.getElementById('apSpeedSelect').value) || 0];
+    apTimer = setInterval(() => {
+        let result;
+        for (let i = 0; i < sp.batch; i++) result = runAutoPlayHand();
+        apUpdateDisplay(result);
+        updateDisplay();
+    }, sp.ms);
+}
+
+function apSetupGetVal(groupId) {
+    const active = document.querySelector(`#${groupId} .setup-opt-btn.active`);
+    return active ? active.dataset.val : null;
+}
+
+function apOpenSetup() {
+    if (state.phase === 'holding') return;
+
+    // Pre-select bet to match current state
+    document.querySelectorAll('#setupBet .setup-opt-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === String(state.bet));
+    });
+
+    // Pre-select speed to match current apSpeedSelect
+    const curSpeed = document.getElementById('apSpeedSelect').value;
+    document.querySelectorAll('#setupSpeed .setup-opt-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === curSpeed);
+    });
+
+    // Pre-select pay table preset if one matches
+    const fh = state.payTable['Full House'], fl = state.payTable['Flush'];
+    const matchPreset = fh === 9 && fl === 6 ? '96' : fh === 8 && fl === 5 ? '85' : fh === 7 && fl === 5 ? '75' : 'current';
+    document.querySelectorAll('#setupPayTable .setup-opt-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.val === matchPreset);
+    });
+
+    document.getElementById('apSetupModal').classList.add('active');
+}
+
+function apLaunch() {
+    const reset    = apSetupGetVal('setupReset');
+    const payPreset = apSetupGetVal('setupPayTable');
+    const betVal   = apSetupGetVal('setupBet');
+    const speedVal = apSetupGetVal('setupSpeed');
+
+    document.getElementById('apSetupModal').classList.remove('active');
+
+    // Apply reset
+    if (reset === 'yes') {
+        state.credits = 100;
+        state.stats = { handsPlayed: 0, totalWagered: 0, totalReturned: 0, winCounts: {} };
+    }
+
+    // Apply pay table
+    if (payPreset === '96') state.payTable = { ...DEFAULT_PAY_TABLE };
+    else if (payPreset === '85') state.payTable = { ...DEFAULT_PAY_TABLE, 'Full House': 8, 'Flush': 5 };
+    else if (payPreset === '75') state.payTable = { ...DEFAULT_PAY_TABLE, 'Full House': 7, 'Flush': 5 };
+    updatePresetHighlight();
+
+    // Apply bet
+    if (betVal) state.bet = parseInt(betVal);
+
+    // Apply speed
+    if (speedVal) document.getElementById('apSpeedSelect').value = speedVal;
+
+    // Launch
+    state.phase = 'autoplay';
+    document.getElementById('autoPlayModal').classList.add('active');
+    document.getElementById('autoPlayBtn').disabled = true;
+    document.getElementById('dealBtn').disabled = true;
+    renderPayTable();
+    updateDisplay();
+    apUpdateDisplay(null);
+    apSchedule();
+}
+
+function apStop() {
+    if (apTimer) { clearInterval(apTimer); apTimer = null; }
+    state.phase = 'idle';
+    document.getElementById('autoPlayModal').classList.remove('active');
+    document.getElementById('autoPlayBtn').disabled = false;
+    document.getElementById('dealBtn').disabled = false;
+    renderStats();
+    renderPayTable();
+    updateDisplay();
+}
+
 function betOne() {
     if (state.phase === 'holding') return;
     state.bet = state.bet >= 5 ? 1 : state.bet + 1;
@@ -899,11 +1230,27 @@ function setCreditValue(val) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
+const PRESETS = {
+    '96': { 'Full House': 9, 'Flush': 6 },
+    '85': { 'Full House': 8, 'Flush': 5 },
+    '75': { 'Full House': 7, 'Flush': 5 },
+};
+
+function updatePresetHighlight() {
+    const fh = state.payTable['Full House'];
+    const fl = state.payTable['Flush'];
+    const active = fh === 9 && fl === 6 ? '96' : fh === 8 && fl === 5 ? '85' : fh === 7 && fl === 5 ? '75' : null;
+    document.getElementById('preset96Btn').classList.toggle('active', active === '96');
+    document.getElementById('preset85Btn').classList.toggle('active', active === '85');
+    document.getElementById('preset75Btn').classList.toggle('active', active === '75');
+}
+
 function init() {
     renderCards();
     renderPayTable();
     updateDisplay();
     renderStats();
+    updatePresetHighlight();
     initSatelliteHands(); // show initial layout matching current mode
 
     // Card click — event delegation on cards-area
@@ -918,6 +1265,28 @@ function init() {
     document.getElementById('betOneBtn').addEventListener('click', betOne);
     document.getElementById('maxBetBtn').addEventListener('click', betMax);
     document.getElementById('menuBtn').addEventListener('click', openSettings);
+    document.getElementById('autoPlayBtn').addEventListener('click', apOpenSetup);
+
+    // Auto-play setup modal
+    document.getElementById('apSetupCancelBtn').addEventListener('click', () => {
+        document.getElementById('apSetupModal').classList.remove('active');
+    });
+    document.getElementById('apSetupStartBtn').addEventListener('click', apLaunch);
+    document.querySelectorAll('.setup-options').forEach(group => {
+        group.addEventListener('click', e => {
+            const btn = e.target.closest('.setup-opt-btn');
+            if (!btn) return;
+            group.querySelectorAll('.setup-opt-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    // Auto-play run modal
+    document.getElementById('stopAutoPlayBtn').addEventListener('click', apStop);
+    document.getElementById('closeAutoPlay').addEventListener('click', apStop);
+    document.getElementById('apSpeedSelect').addEventListener('change', () => {
+        if (apTimer) apSchedule();
+    });
 
     // Settings modal
     document.getElementById('closeSettings').addEventListener('click', closeSettings);
@@ -985,23 +1354,30 @@ function init() {
         if (val > 0) { state.dollarsPerPoint = val; renderStats(); }
     });
 
-    // Reset pay table
-    document.getElementById('resetPayTableBtn').addEventListener('click', () => {
-        state.payTable = { ...DEFAULT_PAY_TABLE };
-        renderPayTableSettings();
-        renderPayTable();
+    // Reset statistics
+    document.getElementById('resetStatsBtn').addEventListener('click', () => {
+        state.stats = { handsPlayed: 0, totalWagered: 0, totalReturned: 0, winCounts: {} };
+        renderStats();
     });
 
-    // 7/5 pay table preset
-    document.getElementById('set75PayTableBtn').addEventListener('click', () => {
+    // Pay table presets (main page)
+    document.getElementById('preset96Btn').addEventListener('click', () => {
+        state.payTable = { ...DEFAULT_PAY_TABLE };
+        renderPayTableSettings(); renderPayTable(); updatePresetHighlight();
+    });
+    document.getElementById('preset85Btn').addEventListener('click', () => {
+        state.payTable = { ...DEFAULT_PAY_TABLE, 'Full House': 8, 'Flush': 5 };
+        renderPayTableSettings(); renderPayTable(); updatePresetHighlight();
+    });
+    document.getElementById('preset75Btn').addEventListener('click', () => {
         state.payTable = { ...DEFAULT_PAY_TABLE, 'Full House': 7, 'Flush': 5 };
-        renderPayTableSettings();
-        renderPayTable();
+        renderPayTableSettings(); renderPayTable(); updatePresetHighlight();
     });
 
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {
         if (document.getElementById('settingsModal').classList.contains('active')) return;
+        if (state.phase === 'autoplay') return;
         switch (e.key) {
             case ' ':  e.preventDefault(); deal(); break;
             case '1':  toggleHold(0); break;

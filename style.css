@@ -126,6 +126,37 @@ body {
     padding: 0;
 }
 
+.pay-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 8px 0;
+}
+
+.pt-presets {
+    display: flex;
+    gap: 4px;
+}
+
+.pt-preset-btn {
+    padding: 2px 7px;
+    background: rgba(255,215,0,0.08);
+    border: 1px solid #aa7700;
+    color: #aa7700;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    transition: background 0.1s, color 0.1s;
+}
+.pt-preset-btn:hover { background: rgba(255,215,0,0.2); color: #ffd700; }
+.pt-preset-btn.active {
+    background: #ffd700;
+    color: #000;
+    border-color: #ffd700;
+}
+
 .pay-table-title {
     text-align: center;
     color: #ffd700;
@@ -657,6 +688,159 @@ body {
     color: #888;
 }
 
+.auto-btn {
+    background: linear-gradient(180deg, #4488ff 0%, #1144bb 100%);
+    color: #fff;
+    letter-spacing: 1px;
+}
+.auto-btn:disabled {
+    background: linear-gradient(180deg, #555 0%, #333 100%);
+    color: #888;
+    cursor: not-allowed;
+}
+
+.stats-auto-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 4px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: filter 0.1s;
+}
+.stats-auto-btn:hover:not(:disabled) { filter: brightness(1.2); }
+
+/* ─── Auto-Play Setup Modal ───────────────────────────────── */
+.ap-setup-modal { max-width: 380px; }
+
+.setup-question {
+    margin-bottom: 16px;
+}
+
+.setup-q-label {
+    color: #ffd700;
+    font-size: 0.78rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 7px;
+}
+
+.setup-options {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.setup-opt-btn {
+    padding: 5px 14px;
+    background: rgba(255,215,0,0.07);
+    border: 1.5px solid #555;
+    color: #aaa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: bold;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.setup-opt-btn:hover { background: rgba(255,215,0,0.15); color: #ffd700; border-color: #aa7700; }
+.setup-opt-btn.active {
+    background: #ffd700;
+    color: #000;
+    border-color: #ffd700;
+}
+
+/* ─── Auto-Play Modal ──────────────────────────────────────── */
+.ap-modal { max-width: 360px; }
+
+.ap-speed-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.ap-speed-row select {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1.5px solid #4488ff;
+    color: #aaddff;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+.ap-label {
+    color: #ffd700;
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.ap-hand-display {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,215,0,0.15);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+.ap-cards {
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+}
+.ap-holds {
+    font-family: 'Courier New', monospace;
+    font-size: 0.78rem;
+    color: #4488ff;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    min-height: 1em;
+}
+.ap-result-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+.ap-result-name {
+    color: #ffd700;
+    font-size: 0.88rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+.ap-result-pay {
+    color: #ff9900;
+    font-size: 1rem;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.ap-divider {
+    border-top: 1px dotted rgba(255,215,0,0.2);
+    margin: 10px 0;
+}
+
+.ap-stats { display: flex; flex-direction: column; gap: 5px; }
+.ap-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.ap-stat-label {
+    color: #888;
+    font-size: 0.72rem;
+    letter-spacing: 1.5px;
+}
+.ap-stat-value {
+    color: #ffd700;
+    font-size: 0.95rem;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
 /* ─── Settings Modal ───────────────────────────────────────── */
 .modal-overlay {
     display: none;
@@ -836,6 +1020,12 @@ body {
     transition: background 0.1s;
 }
 .reset-btn:hover { background: rgba(180,0,0,0.3); }
+
+.stats-reset-btn {
+    width: 100%;
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
 
 .modal-footer {
     padding: 12px 18px;
