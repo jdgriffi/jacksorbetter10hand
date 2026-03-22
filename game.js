@@ -408,12 +408,15 @@ function renderCards() {
 
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
-    const winningHands = new Set();
-    if (state.lastHand) winningHands.add(state.lastHand);
-    if (state.multiHand) state.satWins.forEach(({ name }) => { if (name) winningHands.add(name); });
+    const handCounts = {};
+    if (state.lastHand) handCounts[state.lastHand] = (handCounts[state.lastHand] || 0) + 1;
+    if (state.multiHand) state.satWins.forEach(({ name }) => {
+        if (name) handCounts[name] = (handCounts[name] || 0) + 1;
+    });
     tbody.innerHTML = HAND_NAMES.map(name => {
         const base = state.payTable[name];
-        const isWinner = winningHands.has(name);
+        const count = handCounts[name] || 0;
+        const isWinner = count > 0;
 
         const cells = [1,2,3,4,5].map(b => {
             const pay = (name === 'Royal Flush' && b === 5) ? 4000 : base * b;
@@ -423,8 +426,9 @@ function renderPayTable() {
             return `<td class="${cls}">${pay}</td>`;
         }).join('');
 
+        const countBadge = count > 0 ? `<span class="hand-count">x${count}</span>` : '';
         return `<tr class="${isWinner ? 'winner' : ''}">
-            <td class="hand-col">${name}</td>${cells}
+            <td class="hand-col">${name}${countBadge}</td>${cells}
         </tr>`;
     }).join('');
 }
@@ -620,8 +624,13 @@ function drawSatelliteHands() {
     state.satWins  = [];
     let total = 0;
 
+    const heldCards = state.hand.filter((_, c) => state.held[c]);
+
     for (let h = 0; h < 9; h++) {
-        const deck = createDeck(); // independent shuffled deck per hand
+        // Remove held cards from the draw deck so duplicates are impossible
+        const deck = createDeck().filter(card =>
+            !heldCards.some(hc => hc.suit === card.suit && hc.rank === card.rank)
+        );
         const hand = state.hand.map((card, c) =>
             state.held[c] ? card : deck.splice(0, 1)[0]
         );

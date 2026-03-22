@@ -176,6 +176,13 @@ body {
     white-space: nowrap;
 }
 
+.hand-count {
+    margin-left: 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    opacity: 0.85;
+}
+
 .pay-table td.col5 {
     background: rgba(255,215,0,0.12);
     color: #ffe880;
